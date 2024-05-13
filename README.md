@@ -12,26 +12,28 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - And more...
 
 ## Limitations
-- There is no executable or .bat (for now), you have to use an IDE or any other way to run the program and modify/run the code from there.
 - Only supports YouTube.
 - Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
 - When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.
 - It has to download each video mp3, so it's limited by the host internet speed and disk space.
 
 ## Installation Guide
-1) Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
-2) Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
-3) Edit the file `bot.py`
-    - Install all the necessary packages.
-    - Change the `DISCORD_APP_KEY` to your discord app api key.
-4) Edit the file `utilidades.py`
-    - Install all the necessary packages.
-    - **(Optional)** Add the API keys you have (spotify, openai, ...), needed to use some commands.
-5) **(Optional)** Change the default prefixes, bot messages, excluded cases, or any other parameter you want.
-6) Run `bot.py`
+- Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
+- Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
+- Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
+- Run the `start.bat` script to initialize the bot.
+- **(If `start.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
+    ```console
+    python.exe -m venv venv
+    venv\Scripts\activate
+    pip install -r requirements.txt
+    bot.py
+    ```
+- **(Optional)** Change the default prefixes, bot messages, excluded cases, or any other parameter you want.
+
 ### Important
-- The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console of your IDE. If you don't want to do that (which might block age restricted videos from being played), change the parameter `USE_LOGIN` to `False`.
-- Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube` and edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`.
+- The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
+- Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`.
 - This script was only tested on WINDOWS, it might not work on other OS.
 ## Command list
 You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
