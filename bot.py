@@ -643,9 +643,10 @@ async def add_perm(ctx, name, perm):
                     break
             if P: await ctx.send(f"Permission `{perm}` added to *everyone*.")
         else:
-            name = name.lower()
+            P = False
             for member in server.members:
-                if name == member.name:
+                if member.name in [name, name.lower()]:
+                    P = True
                     try:
                         user_perms[str(member.id)]
                     except:
@@ -662,6 +663,8 @@ async def add_perm(ctx, name, perm):
                     else:
                         await ctx.send(f"Permission `{perm}` is not a valid permission, use `available_perms`.")
                         break
+            if not P:
+                await ctx.send(f"Couldn't find user `{name}`.")
 
         with open(file_path, 'w') as f:
             json.dump(user_perms, f)
@@ -700,9 +703,10 @@ async def del_perm(ctx, name, perm):
                     break
             if P: await ctx.send(f"Permission `{perm}` removed from everyone.")
         else:
-            name = name.lower()
+            P = False
             for member in server.members:
-                if name == member.name:
+                if member.name in [name, name.lower()]:
+                    P = True
                     try:
                         user_perms[str(member.id)]
                     except:
@@ -719,6 +723,8 @@ async def del_perm(ctx, name, perm):
                     else:
                         await ctx.send(f"Permission `{perm}` is not a valid permission, use `available_perms`.")
                         break
+            if not P:
+                await ctx.send(f"Couldn't find user `{name}`.")
 
         with open(file_path, 'w') as f:
             json.dump(user_perms, f)
