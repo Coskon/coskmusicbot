@@ -74,9 +74,13 @@ no_api_key_texts = ["This function is disabled."]
 insuff_perms_texts = ["You don't have permission to do this."]
 
 ## API KEYS ##
-DISCORD_APP_KEY = ''
+with open('API_KEYS.txt', 'r') as f:
+    DISCORD_APP_KEY = f.read().split("\n")[0].split("=")[1]
+if not DISCORD_APP_KEY:
+    print("\033[91mDISCORD_APP_KEY not found. Go into 'API_KEYS.txt' to set it.\033[0m")
+    raise Exception
 TENOR_API_KEY = utilidades.TENOR_API_KEY
-OPENAI_KEY = utilidades.OPENAI_KEY
+OPENAI_KEY = utilidades.OPENAI_API_KEY
 GENIUS_ACCESS_TOKEN = utilidades.GENIUS_ACCESS_TOKEN
 SPOTIFY_ID = utilidades.SPOTIFY_ID
 SPOTIFY_SECRET = utilidades.SPOTIFY_SECRET
@@ -214,7 +218,11 @@ def create_perms_file(ctx, file_path):
 def update_level_info(ctx, user_id, xp_add):
     try:
         server = ctx.guild
-        with open(f'level_data_{server.id}.json', 'r') as json_file:
+        level_file_path = f'level_data_{server.id}.json'
+        if not os.path.exists(level_file_path):
+            print("a")
+            restart_levels(ctx)
+        with open(level_file_path, 'r') as json_file:
             datos = json.load(json_file)
         k, prev = 0, 0
         for i in range(len(datos)):
@@ -228,7 +236,7 @@ def update_level_info(ctx, user_id, xp_add):
                         k += 1
                     if prev == k: break
                 break
-        with open(f'level_data_{server.id}.json', 'w') as f:
+        with open(level_file_path, 'w') as f:
             json.dump(datos, f)
     except:
         traceback.print_exc()

@@ -8,11 +8,14 @@ from pyppeteer import launch
 
 
 GENIUS_API_BASE_URL = "https://api.genius.com"
-GENIUS_ACCESS_TOKEN = ''
-SPOTIFY_ID = ''
-SPOTIFY_SECRET = ''
-TENOR_API_KEY = ''
-OPENAI_KEY = ''
+
+with open('API_KEYS.txt', 'r') as f:
+    keys = f.read().split("\n")
+    TENOR_API_KEY = keys[1].split("=")[1]
+    OPENAI_API_KEY = keys[2].split("=")[1]
+    GENIUS_ACCESS_TOKEN = keys[3].split("=")[1]
+    SPOTIFY_ID = keys[4].split("=")[1]
+    SPOTIFY_SECRET = keys[5].split("=")[1]
 
 client_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_ID, client_secret=SPOTIFY_SECRET) if SPOTIFY_ID and SPOTIFY_SECRET else None
 
