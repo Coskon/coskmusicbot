@@ -397,7 +397,8 @@ async def on_command_error(ctx, error):
 @tasks.loop(seconds=1)
 async def update_current_time(ctx):
     global dict_current_time
-    dict_current_time[str(ctx.guild.id)] += 1
+    for guild in dict_current_time:  
+      dict_current_time[guild] += 1
 
 
 @tasks.loop(seconds=MEMBERS_LEFT_TIMEOUT)
