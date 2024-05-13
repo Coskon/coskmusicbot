@@ -19,7 +19,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - It has to download each video mp3, so it's limited by the host internet speed and disk space.
 
 ## Installation Guide
-1) Clone or [download]() the repository.
+1) Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 2) Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
 3) Edit the file `bot.py`
     - Install all the necessary packages.
