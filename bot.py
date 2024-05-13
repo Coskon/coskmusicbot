@@ -215,13 +215,12 @@ def create_perms_file(ctx, file_path):
             json.dump(userdict, f)
 
 
-def update_level_info(ctx, user_id, xp_add):
+async def update_level_info(ctx, user_id, xp_add):
     try:
         server = ctx.guild
         level_file_path = f'level_data_{server.id}.json'
         if not os.path.exists(level_file_path):
-            print("a")
-            restart_levels(ctx)
+            await restart_levels(ctx)
         with open(level_file_path, 'r') as json_file:
             datos = json.load(json_file)
         k, prev = 0, 0
@@ -1181,7 +1180,7 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
             if not update_current_time.is_running(): update_current_time.start(ctx)
 
             # LVL HANDLE
-            update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
+            await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
             if not ctx.voice_client.is_paused():
                 ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path), after=lambda e: on_song_end(ctx, e))
         else:
