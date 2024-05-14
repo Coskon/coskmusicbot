@@ -1,0 +1,43 @@
+BOT_NAME = Coskquin  # name of your bot
+
+MAX_VIDEO_LENGTH = 18000  # in seconds
+
+PLAYLIST_MAX_LIMIT = 200  # max videos on playlist
+
+PLAYLIST_TIME_LIMIT = 100  # max videos to see their total duration
+
+TIMELIMIT = 30  # (in seconds) timelimit for the popup of the search choice embed
+
+REQUEST_LIMIT = 1.75  # (in seconds) time should pass between command calls from each user
+
+MEMBERS_LEFT_TIMEOUT = 20  # (in seconds) time between each check for members left
+
+EMBED_COLOR = 0xff0000  # color for the side of the embed
+
+DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default
+
+DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default
+
+LVL_PLAY_ADD = 1  # how much to add per play command called
+
+LVL_NEXT_XP = 25  # how much required xp added per next level
+
+LVL_BASE_XP = 25  # base xp required for the first level
+
+NUM_THREADS_HIGH = 4  # number of threads to use for tasks that need high performance
+
+NUM_THREADS_LOW = 2  # number of threads to use for tasks that don't need as much performance
+
+USE_LOGIN = True
+
+DOWNLOAD_PATH = downloads/  # download output folder
+
+DEFAULT_PREFIXES = [".", "+", ","]  # prefixes to use by default
+
+EXCLUDED_CASES = ["._.", ".-.", ":)", "-.-"]  # list of cases to exclude from being recognized as commands
+
+AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms']  # all permissions available
+
+DEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay']  # permissions each user gets by default
+
+ADMIN_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms']  # permissions admin users get by default
