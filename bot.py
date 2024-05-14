@@ -41,19 +41,20 @@ LVL_NEXT_XP = int(var_values[11])  # how much required xp added per next level
 LVL_BASE_XP = int(var_values[12])
 NUM_THREADS_HIGH = int(var_values[13])  # number of threads to use for tasks that need high performance
 NUM_THREADS_LOW = int(var_values[14])  # number of threads to use for tasks that don't need as much performance
-USE_LOGIN = bool(var_values[15].capitalize())
+USE_LOGIN = ast.literal_eval(var_values[15].capitalize())
 DOWNLOAD_PATH = str(var_values[16])  # download output folder
 DEFAULT_PREFIXES = ast.literal_eval(var_values[17])  # prefixes to use by default
 EXCLUDED_CASES = ast.literal_eval(var_values[18])  # list of cases to exclude from being recognized as commands
 AVAILABLE_PERMS = ast.literal_eval(var_values[19])  # all permissions available
 DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user gets by default
 ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
+USE_BUTTONS = ast.literal_eval(var_values[22].capitalize())  # to use buttons to select a song, if False uses reactions
 
 # The bot will send these texts (will randomly select if there are multiple texts in the list)
 already_connected_texts = ["I'm already connected.", "I'm already here."]
 entering_texts = ["Entering ", "Going into "]
 nothing_on_texts = ["Nothing is playing."]
-song_not_chosen_texts = ["No song chosen in `30` seconds..."]
+song_not_chosen_texts = [f"No song chosen in `{TIMELIMIT}` seconds..."]
 not_existing_command_texts = ["Invalid command."]
 nobody_left_texts = ["Nobody left, disconnecting..."]
 invalid_use_texts = ["Invalid use (check `help` for more info)."]
@@ -87,6 +88,7 @@ SPOTIFY_SECRET = utilidades.SPOTIFY_SECRET
 
 ## GLOBAL VARIABLES ##
 dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
+button_choice = dict()
 user_cooldowns = {}
 loop_mode = "off"
 dict_current_song, dict_current_time = dict(), dict()
@@ -338,8 +340,25 @@ async def play_next(ctx):
         await ctx.invoke(bot.get_command('play'), url=url, append=False)
 
 
-bot = commands.Bot(command_prefix=DEFAULT_PREFIXES, activity=activity, intents=intents, help_command=None,
+bot = commands.Bot(command_prefix="DEF_PREFIX", activity=activity, intents=intents, help_command=None,
                    case_insensitive=True)
+
+## CLASSES ##
+class PlayButton(discord.ui.Button):
+    def __init__(self, song_index, gid):
+        self.song_index = song_index
+        self.gid = gid
+        super().__init__(label=f"", style=discord.ButtonStyle.secondary, emoji=f"{['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][song_index]}")
+
+    async def callback(self, interaction):
+        global button_choice
+        button_choice[self.gid] = self.song_index
+
+
+class SongChooseMenu(discord.ui.View):
+    def __init__(self, gid):
+        super().__init__()
+        for i in range(5): self.add_item(PlayButton(i, gid))
 
 
 ## BOT EVENTS ##
@@ -364,8 +383,8 @@ async def on_message(message):
         succ = False
         for prefix in options['custom_prefixes']:
             if message.content.startswith(prefix):
-                message.content = '.' + message.content[len(prefix):]
-                print(f'\033[92m>>> Command from {message.author}: {message.content}\033[0m')
+                print(f'\033[92m>>> Command from {message.author}: {message.content[len(prefix):]}\033[0m')
+                message.content = 'DEF_PREFIX' + message.content[len(prefix):]
                 if message.author.id in user_cooldowns:
                     curr_time = time.time()
                     cooldown_time = user_cooldowns[message.author.id]
@@ -1081,18 +1100,41 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
                 choice_embed.set_thumbnail(url=firstyt.thumbnail_url)
 
                 disable_play = True
-                emoji_choice = await choice(ctx, choice_embed, emojis_reactions)
-                disable_play = False
-                if not emoji_choice or emoji_choice == '❌':
-                    await ctx.send(random.choice(cancel_selection_texts))
-                    if not members_left.is_running(): members_left.start()
-                    return
-                url = f"https://www.youtube.com/watch?v={results[emoji_to_number.get(emoji_choice, None) - 1].video_id}"
-                if ctx.voice_client:
-                    await ctx.send(f"Chosen: {YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True).title}",
-                                   reference=ctx.message)
+                if USE_BUTTONS:
+                    button_choice[gid] = -1
+                    menu = SongChooseMenu(gid)
+                    message = await ctx.send(embed=choice_embed, view=menu)
+                    try:
+                        await bot.wait_for('interaction', timeout=TIMELIMIT, check=lambda _: True)
+                    except asyncio.TimeoutError:
+                        await message.delete()
+                        await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message)
+                        return
+                    await message.delete()
+                    if button_choice[gid] < 0:
+                        await ctx.send(random.choice(cancel_selection_texts))
+                        if not members_left.is_running(): members_left.start()
+                        return
+                    url = f"https://www.youtube.com/watch?v={results[button_choice[gid]].video_id}"
+                    if ctx.voice_client:
+                        await ctx.send(f"Chosen: {YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True).title}",
+                                       reference=ctx.message)
+                    else:
+                        return
+                    disable_play = False
                 else:
-                    return
+                    emoji_choice = await choice(ctx, choice_embed, emojis_reactions)
+                    disable_play = False
+                    if not emoji_choice or emoji_choice == '❌':
+                        await ctx.send(random.choice(cancel_selection_texts))
+                        if not members_left.is_running(): members_left.start()
+                        return
+                    url = f"https://www.youtube.com/watch?v={results[emoji_to_number.get(emoji_choice, None) - 1].video_id}"
+                    if ctx.voice_client:
+                        await ctx.send(f"Chosen: {YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True).title}",
+                                       reference=ctx.message)
+                    else:
+                        return
             else:
                 url = f"https://www.youtube.com/watch?v={results[0].video_id}"
 
@@ -1207,8 +1249,10 @@ async def level(ctx):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
         id = ctx.author.id
-        guild = ctx.guild
-        with open(f'level_data_{guild.id}.json', 'r') as f:
+        level_file_path = f'level_data_{ctx.guild.id}.json'
+        if not os.path.exists(level_file_path):
+            await restart_levels(ctx)
+        with open(level_file_path, 'r') as f:
             level_data = json.load(f)
         for data in level_data:
             if id == data['id']:
