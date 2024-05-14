@@ -6,7 +6,7 @@ import librosa
 import subprocess
 import soundfile as sf
 import numpy as np
-import os, random, re, json, traceback, time
+import os, random, re, json, traceback, time, ast
 from discord.ext import commands, tasks
 from pytube import YouTube, exceptions, Search, Playlist
 from urllib.parse import urlsplit
@@ -18,36 +18,36 @@ intents.voice_states, intents.message_content, intents.members = (True for _ in 
 activity = discord.Activity(type=discord.ActivityType.listening, name=".play")
 
 ## PARAMETER VARIABLES ##
-BOT_NAME = "Coskquin"  # name of your bot
-MAX_VIDEO_LENGTH = 18000  # in seconds
-PLAYLIST_MAX_LIMIT = 200  # max videos on playlist
-PLAYLIST_TIME_LIMIT = 100  # max videos to see their total duration
-TIMELIMIT = 30  # (in seconds) timelimit for the popup of the search choice embed
-REQUEST_LIMIT = 1.75  # (in seconds) time should pass between command calls from each user
-MEMBERS_LEFT_TIMEOUT = 20  # (in seconds) time between each check for members left
-EMBED_COLOR = 0xff0000  # color for the side of the embed
-DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default
-DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default
-LVL_PLAY_ADD = 1  # how much to add per play command called
-LVL_NEXT_XP = 50  # how much required xp added per next level
-NUM_THREADS_HIGH = 8  # number of threads to use for tasks that need high performance
-NUM_THREADS_LOW = 4  # number of threads to use for tasks that don't need as much performance
-USE_LOGIN = True
-DOWNLOAD_PATH = "downloads/"  # download output folder
-DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default
-EXCLUDED_CASES = ["._.", ".-.", ":)", "-.-"]  # list of cases to exclude from being recognized as commands
-DEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume',
-                      'use_queue', 'use_rewind',
-                      'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward',
-                      'use_fastplay']  # permissions each user gets by default
-AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue',
-                   'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove',
-                   'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek',
-                   'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms',
-                   'use_add_prefix',
-                   'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms',
-                   'use_available_perms']  # all permissions available
-ADMIN_PERMS = AVAILABLE_PERMS.copy()  # permissions admin users get by default
+with open(r'PARAMETERS.txt', 'r') as f:
+    lines = f.readlines()
+
+var_values = []
+for line in lines:
+    if line == "\n": continue
+    var_values.append(line[:line.find("#")].split("=")[1].strip())
+
+BOT_NAME = str(var_values[0])  # name of your bot
+MAX_VIDEO_LENGTH = int(var_values[1])  # in seconds
+PLAYLIST_MAX_LIMIT = int(var_values[2])  # max videos on playlist
+PLAYLIST_TIME_LIMIT = int(var_values[3])  # max videos to see their total duration
+TIMELIMIT = int(var_values[4])  # (in seconds) timelimit for the popup of the search choice embed
+REQUEST_LIMIT = float(var_values[5])  # (in seconds) time should pass between command calls from each user
+MEMBERS_LEFT_TIMEOUT = int(var_values[6])  # (in seconds) time between each check for members left
+EMBED_COLOR = int(var_values[7], 16)  # color for the side of the embed
+DEFAULT_SEARCH_LIMIT = int(var_values[8])  # how many videos to show using the search command by default
+DEFAULT_RECOMMENDATION_LIMIT = int(var_values[9])  # how many videos to show in recommendations by default
+LVL_PLAY_ADD = int(var_values[10])  # how much to add per play command called
+LVL_NEXT_XP = int(var_values[11])  # how much required xp added per next level
+LVL_BASE_XP = int(var_values[12])
+NUM_THREADS_HIGH = int(var_values[13])  # number of threads to use for tasks that need high performance
+NUM_THREADS_LOW = int(var_values[14])  # number of threads to use for tasks that don't need as much performance
+USE_LOGIN = bool(var_values[15].capitalize())
+DOWNLOAD_PATH = str(var_values[16])  # download output folder
+DEFAULT_PREFIXES = ast.literal_eval(var_values[17])  # prefixes to use by default
+EXCLUDED_CASES = ast.literal_eval(var_values[18])  # list of cases to exclude from being recognized as commands
+AVAILABLE_PERMS = ast.literal_eval(var_values[19])  # all permissions available
+DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user gets by default
+ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
 
 # The bot will send these texts (will randomly select if there are multiple texts in the list)
 already_connected_texts = ["I'm already connected.", "I'm already here."]
