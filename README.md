@@ -17,6 +17,10 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
 - It has to download each video mp3, so it's limited by the host internet speed and disk space.
 
+## Known bugs
+- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it should be a huge problem)
+- Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.
+
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
@@ -71,8 +75,8 @@ You can see aliases for each command using the bot. If you want to change the na
 - `add_prefix [prefix]`: Add the specified prefix.
 - `del_prefix [prefix]`: Removes the specified prefix.
 - `available_perms`: Shows the list of all available permissions a user can have, and a list of the permissions a user has by default.
-- `add_perm [name] [permission]`: Adds "permission" to the specified user (use ALL to affect everyone).
-- `del_perm [name] [permission]`: Removes "permission" from the specified user (use ALL to affect everyone).
+- `add_perm [name] [permission]`: Adds "permission" to the specified user (use ALL or * to affect everyone, use ALL or * to give every permission).
+- `del_perm [name] [permission]`: Removes "permission" from the specified user (use ALL or * to affect everyone).
 
 ## To be added
 A list of things that might get added:
