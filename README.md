@@ -9,6 +9,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Use YouTube URLs or choose from 5 results.
 - Time limitation between command calls.
 - Lots of easily adjustable parameters.
+- English and Spanish languages.
 - And more...
 
 ## Limitations
@@ -33,13 +34,14 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
     pip install -r requirements.txt
     bot.py
     ```
-- **(Optional)** Change the default prefixes, bot messages, excluded cases, or any other parameter you want.
+- **(Optional)** Change parameters in `PARAMETERS.txt`.
 
 ### Important
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`.
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and run the `options default` or `add_prefix [prefix]` commands.
+
 ## Command list
 You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
 - `help [command]`: Shows more information about the given command. If no command is provided, shows a list of all commands.
@@ -77,6 +79,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `available_perms`: Shows the list of all available permissions a user can have, and a list of the permissions a user has by default.
 - `add_perm [name] [permission]`: Adds "permission" to the specified user (use ALL or * to affect everyone, use ALL or * to give every permission).
 - `del_perm [name] [permission]`: Removes "permission" from the specified user (use ALL or * to affect everyone).
+- `lang [language]`: Changes the language of the bot (english: en, spanish: es).
 
 ## To be added
 A list of things that might get added:
@@ -84,3 +87,6 @@ A list of things that might get added:
 - [ ] More info to the `steam` command.
 - [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
 - [ ] Spotify support to play songs and playlists.
+- [X] ~~Languages.~~
+- [ ] User interface.
+- [ ] Easier command customization.
