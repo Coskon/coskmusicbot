@@ -345,10 +345,11 @@ bot = commands.Bot(command_prefix="DEF_PREFIX", activity=activity, intents=inten
 
 ## CLASSES ##
 class PlayButton(discord.ui.Button):
-    def __init__(self, song_index, gid):
+    def __init__(self, song_index, gid, disabled=False):
         self.song_index = song_index
         self.gid = gid
-        super().__init__(label=f"", style=discord.ButtonStyle.secondary, emoji=f"{['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][song_index]}")
+        if song_index == -2: super().__init__(label=f"\0", style=discord.ButtonStyle.secondary, disabled=disabled)
+        else: super().__init__(label=f"", style=discord.ButtonStyle.secondary, emoji=f"{['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '❌'][song_index]}", disabled=disabled)
 
     async def callback(self, interaction):
         global button_choice
@@ -359,7 +360,9 @@ class SongChooseMenu(discord.ui.View):
     def __init__(self, gid):
         super().__init__()
         for i in range(5): self.add_item(PlayButton(i, gid))
-
+        for i in range(5):
+            if i != 2: self.add_item(PlayButton(-2, gid, True))
+            else: self.add_item(PlayButton(-1, gid))
 
 ## BOT EVENTS ##
 @bot.event
@@ -644,8 +647,8 @@ async def add_perm(ctx, name, perm):
 
         server = ctx.guild
         perm = perm.lower()
-        if name == "ALL":
-            P = True
+        if name == "ALL" or name == "*":
+            P = 1
             for member in server.members:
                 try:
                     user_perms[str(member.id)]
@@ -656,11 +659,15 @@ async def add_perm(ctx, name, perm):
                         user_perms[str(member.id)] = DEFAULT_USER_PERMS
                 if perm in AVAILABLE_PERMS:
                     if perm not in user_perms[str(member.id)]: user_perms[str(member.id)].append(perm)
+                elif perm in ["ALL", "*"]:
+                    user_perms[str(member.id)] = AVAILABLE_PERMS.copy()
+                    P = 2
                 else:
                     await ctx.send(f"Permission `{perm}` is not a valid permission, use `available_perms`.")
-                    P = False
+                    P = 0
                     break
-            if P: await ctx.send(f"Permission `{perm}` added to *everyone*.")
+            if P == 1: await ctx.send(f"Permission `{perm}` added to *everyone*.")
+            if P == 2: await ctx.send(f"Every permission added to everyone.")
         else:
             P = False
             for member in server.members:
@@ -679,6 +686,9 @@ async def add_perm(ctx, name, perm):
                             break
                         user_perms[str(member.id)].append(perm)
                         await ctx.send(f"Permission `{perm}` added to `{member.name}`.")
+                    elif perm in ["ALL", "*"]:
+                        user_perms[str(member.id)] = AVAILABLE_PERMS.copy()
+                        await ctx.send(f"Every permission added to `{member.name}`.")
                     else:
                         await ctx.send(f"Permission `{perm}` is not a valid permission, use `available_perms`.")
                         break
@@ -704,7 +714,7 @@ async def del_perm(ctx, name, perm):
 
         server = ctx.guild
         perm = perm.lower()
-        if name == "ALL":
+        if name == "ALL" or name == "*":
             P = True
             for member in server.members:
                 try:
@@ -831,7 +841,8 @@ async def leave(ctx):
             pass
         change_active(ctx, mode='d')
         gid = str(ctx.guild.id)
-        dict_queue[gid].clear()
+        try: dict_queue[gid].clear()
+        except: pass
         disable_play = False
         dict_current_song[gid], dict_current_time[gid] = 0, 0
         [os.remove(os.path.join(DOWNLOAD_PATH, file)) for file in os.listdir(DOWNLOAD_PATH)]
@@ -1109,7 +1120,9 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
                     except asyncio.TimeoutError:
                         await message.delete()
                         await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message)
+                        disable_play = False
                         return
+                    disable_play = False
                     await message.delete()
                     if button_choice[gid] < 0:
                         await ctx.send(random.choice(cancel_selection_texts))
