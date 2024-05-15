@@ -42,4 +42,4 @@ DEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join
 
 ADMIN_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms']  # permissions admin users get by default
 
-USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions
+USE_BUTTONS = False  # to use buttons to select a song, if False uses reactions
