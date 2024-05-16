@@ -10,6 +10,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Time limitation between command calls.
 - Lots of easily adjustable parameters.
 - English and Spanish languages.
+- Gradio UI.
 - And more...
 
 ## Limitations
@@ -18,6 +19,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
 - It has to download each video mp3, so it's limited by the host internet speed and disk space.
 - Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
+- User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
 
 ## Known bugs
 - If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it should be a huge problem)
@@ -36,7 +38,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
     lang/lang.py
     bot.py
     ```
-- **(Optional)** Change parameters in `PARAMETERS.txt`.
+- **(Optional)** Run `gradio_ui.bat` to initialize the user interface to modify some options and parameters, or change them in `PARAMETERS.txt`.
 
 ### Important
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
@@ -90,5 +92,5 @@ A list of things that might get added:
 - [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
 - [ ] Spotify support to play songs and playlists.
 - [X] ~~Languages.~~
-- [ ] User interface.
+- [X] ~~User interface.~~ (kinda, will be modified)
 - [ ] Easier command customization.
