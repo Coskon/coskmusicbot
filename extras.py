@@ -1,7 +1,8 @@
 import os, re, json
 import requests
 from urllib.parse import urlsplit
-from pytube import YouTube, Playlist, exceptions
+try: from pytube import YouTube, Playlist, exceptions
+except: pass
 
 def write_param():
     with open('PARAMETERS.txt', 'w') as f:
