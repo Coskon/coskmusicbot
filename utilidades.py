@@ -227,11 +227,16 @@ def genre_spotify_search(user_query, lim=15):
     return top_results, False, chosen_genre
 
 
-def chatgpt(msg, OPENAI_KEY):
+def chatgpt(msg, OPENAI_KEY, lang):
     openai_client = OpenAI(api_key=OPENAI_KEY)
-    context = {"role": "system",
-               "content": "You are ChatGPT. You are a useful chatbot which responds to whatever the user says in either "
-                          "english or spanish depending on the user's input. If possible, respond with short and concise answers."}
+    if lang == "es":
+        context = {"role": "system",
+                   "content": "Eres ChatGPT, un útil chatbot que responde a lo que sea que el usuario pida en español. "
+                              "Si es posible, usar respuestas cortas y concisas."}
+    else:
+        context = {"role": "system",
+                   "content": "You are ChatGPT. You are a useful chatbot which responds to whatever the user asks for. "
+                              "If possible, respond with short and concise answers."}
     response = openai_client.chat.completions.create(messages=[context,{"role": "user", "content": msg}], model="gpt-3.5-turbo" )
     return response.choices[0].message.content
 

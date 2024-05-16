@@ -13,6 +13,7 @@ IF EXIST "%VENV_NAME%\Scripts\activate.bat" (
 CALL "%VENV_NAME%\Scripts\activate"
 pip install -r requirements.txt
 
+python.exe lang\lang.py
 python.exe bot.py
 
 PAUSE
