@@ -1,17 +1,4 @@
-import json, os
-
-file = []
-try:
-    with open("../PARAMETERS.txt", "r") as f:
-        for line in f.readlines(): file.append(line[:line.find('#')]) if line != "\n" else ""
-        TIMELIMIT = int(file[4].split("=")[1].strip())
-except:
-    with open("PARAMETERS.txt", "r") as f:
-        for line in f.readlines(): file.append(line[:line.find('#')]) if line != "\n" else ""
-        TIMELIMIT = int(file[4].split("=")[1].strip())
-    os.chdir("lang")
-file = None
-line = None
+import json
 
 
 ### ENGLISH ###
@@ -19,7 +6,7 @@ if True: # only to minimize
     already_connected_texts = ["I'm already connected.", "I'm already here."]
     entering_texts = ["Entering ", "Going into "]
     nothing_on_texts = ["Nothing is playing."]
-    song_not_chosen_texts = [f"No song chosen in `{TIMELIMIT}` seconds..."]
+    song_not_chosen_texts = [f"Selection timed out."]
     not_existing_command_texts = ["Invalid command."]
     nobody_left_texts = ["Nobody left, disconnecting..."]
     invalid_use_texts = ["Invalid use (check `help` for more info)."]
@@ -38,7 +25,7 @@ if True: # only to minimize
     no_game_texts = ["Game not available."]
     no_api_key_texts = ["This function is disabled."]
     insuff_perms_texts = ["You don't have permission to do this."]
-    discord_app_key_not_found = "DISCORD_APP_KEY not found. Go into 'API_KEYS.txt' to set it."
+    api_key_not_found = "not found. Go into 'API_KEYS.txt' to set it."
     api_request_error = "Error making API request"
     invalid_time_format = "Invalid time format. Please use either HH:MM:SS or MM:SS."
     generic_error = "Error"
@@ -117,6 +104,7 @@ if True: # only to minimize
     prefix_del_title = "Prefix removed"
     prefix_del_desc = "➤ Prefix `%prefix` has been removed. Prefixes: `%prefixes`"
     lang_changed = "Hello!"
+    missing_parameters = "ATTENTION: Missing parameter, file will be rewritten and parameters will be changed to default.\nPress 'Enter' to proceed."
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
     command_desc_play = f"➤ Use: `play [query or url] [nothing/---1]`\n➤ Aliases: `p`\n" \
@@ -214,8 +202,12 @@ for name, value in zip(a.keys(), a.values()):
     if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
         en_data[name] = value
 
-with open("en.json", "w") as f:
-    json.dump(en_data, f)
+try:
+    with open("lang/en.json", "w") as f:
+        json.dump(en_data, f)
+except:
+    with open("en.json", "w") as f:
+        json.dump(en_data, f)
 
 
 ### SPANISH ###
@@ -223,7 +215,7 @@ if True: # only to minimize
     already_connected_texts = ["Ya estoy conectado.", "Ya entré."]
     entering_texts = ["Uniéndome a ", "Entrando a "]
     nothing_on_texts = ["No está sonando nada."]
-    song_not_chosen_texts = [f"No se eligió una canción en `{TIMELIMIT}` segundos..."]
+    song_not_chosen_texts = [f"La selección ha expirado."]
     not_existing_command_texts = ["Comando inválido."]
     nobody_left_texts = ["No queda nadie, desconectando..."]
     invalid_use_texts = ["Uso inválido (usar `help` para más información)."]
@@ -241,7 +233,7 @@ if True: # only to minimize
     lyrics_too_long_texts = ["La letra es muy larga."]
     no_api_key_texts = ["Esta funcionalidad está desactivada."]
     insuff_perms_texts = ["No tienes permisos para usar esto."]
-    discord_app_key_not_found = "DISCORD_APP_KEY no encontrado. Ir a 'API_KEYS.txt' para configurarlo."
+    api_key_not_found = "no encontrado. Ir a 'API_KEYS.txt' para configurarlo."
     api_request_error = "Error en la solicitud de API"
     invalid_time_format = "Formato del tiempo inválido. Usar HH:MM:SS o MM:SS."
     generic_error = "Error"
@@ -320,6 +312,7 @@ if True: # only to minimize
     prefix_del_title = "Prefijo removido"
     prefix_del_desc = "➤ El prefijo `%prefix` fue removido. Prefijos: `%prefixes`"
     lang_changed = "¡Hola!"
+    missing_parameters = "ATENCIÓN: Parámetro faltante, se reescribirá el archivo y los parámetros serán cambiados a sus valores por defecto.\nPresiona 'Enter' para proceder."
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
     command_desc_play = f"➤ Uso: `play [canción o link] [nada/---1]`\n➤ Aliases: `p`\n" \
@@ -419,5 +412,9 @@ for name, value in zip(a.keys(), a.values()):
     if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
         es_data[name] = value
 
-with open("es.json", "w") as f:
-    json.dump(es_data, f)
+try:
+    with open("lang/es.json", "w") as f:
+        json.dump(es_data, f)
+except:
+    with open("es.json", "w") as f:
+        json.dump(es_data, f)

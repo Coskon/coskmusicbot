@@ -9,46 +9,15 @@ import numpy as np
 import os, random, re, json, traceback, time, ast, configparser
 from discord.ext import commands, tasks
 from pytube import YouTube, exceptions, Search, Playlist
-from urllib.parse import urlsplit
 from concurrent.futures import ThreadPoolExecutor
+from extras import *
+
 
 ## BOT INITIALIZATION ##
 intents = discord.Intents.default()
 intents.voice_states, intents.message_content, intents.members = (True for _ in range(3))
 activity = discord.Activity(type=discord.ActivityType.listening, name=".play")
 
-## PARAMETER VARIABLES ##
-with open(r'PARAMETERS.txt', 'r') as f:
-    lines = f.readlines()
-
-var_values = []
-for line in lines:
-    if line == "\n": continue
-    var_values.append(line[:line.find("#")].split("=")[1].strip())
-
-BOT_NAME = str(var_values[0])  # name of your bot
-MAX_VIDEO_LENGTH = int(var_values[1])  # in seconds
-PLAYLIST_MAX_LIMIT = int(var_values[2])  # max videos on playlist
-PLAYLIST_TIME_LIMIT = int(var_values[3])  # max videos to see their total duration
-TIMELIMIT = int(var_values[4])  # (in seconds) timelimit for the popup of the search choice embed
-REQUEST_LIMIT = float(var_values[5])  # (in seconds) time should pass between command calls from each user
-MEMBERS_LEFT_TIMEOUT = int(var_values[6])  # (in seconds) time between each check for members left
-EMBED_COLOR = int(var_values[7], 16)  # color for the side of the embed
-DEFAULT_SEARCH_LIMIT = int(var_values[8])  # how many videos to show using the search command by default
-DEFAULT_RECOMMENDATION_LIMIT = int(var_values[9])  # how many videos to show in recommendations by default
-LVL_PLAY_ADD = int(var_values[10])  # how much to add per play command called
-LVL_NEXT_XP = int(var_values[11])  # how much required xp added per next level
-LVL_BASE_XP = int(var_values[12])
-NUM_THREADS_HIGH = int(var_values[13])  # number of threads to use for tasks that need high performance
-NUM_THREADS_LOW = int(var_values[14])  # number of threads to use for tasks that don't need as much performance
-USE_LOGIN = ast.literal_eval(var_values[15].capitalize())
-DOWNLOAD_PATH = str(var_values[16])  # download output folder
-DEFAULT_PREFIXES = ast.literal_eval(var_values[17])  # prefixes to use by default
-EXCLUDED_CASES = ast.literal_eval(var_values[18])  # list of cases to exclude from being recognized as commands
-AVAILABLE_PERMS = ast.literal_eval(var_values[19])  # all permissions available
-DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user gets by default
-ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
-USE_BUTTONS = ast.literal_eval(var_values[22].capitalize())  # to use buttons to select a song, if False uses reactions
 
 ## CONFIG AND LANGUAGE ##
 config_path = "config.ini"
@@ -67,17 +36,57 @@ with open(f"lang/{language}.json", "r") as f:
 
 globals().update(lang_dict)
 
+
+## PARAMETER VARIABLES ##
+var_values = read_param()
+if len(var_values) < 24:
+    input(f"\033[91m{missing_parameters}\033[0m")
+    write_param()
+    var_values = read_param()
+
+BOT_NAME = str(var_values[0])  # name of your bot
+MAX_VIDEO_LENGTH = int(var_values[1])  # in seconds
+PLAYLIST_MAX_LIMIT = int(var_values[2])  # max videos on playlist
+PLAYLIST_TIME_LIMIT = int(var_values[3])  # max videos to see their total duration
+TIMELIMIT = int(var_values[4])  # (in seconds) timelimit for the popup of the search choice embed
+REQUEST_LIMIT = float(var_values[5])  # (in seconds) time should pass between command calls from each user
+MEMBERS_LEFT_TIMEOUT = int(var_values[6])  # (in seconds) time between each check for members left
+EMBED_COLOR = int(var_values[7], 16)  # color for the side of the embed
+DEFAULT_SEARCH_LIMIT = int(var_values[8])  # how many videos to show using the search command by default
+DEFAULT_RECOMMENDATION_LIMIT = int(var_values[9])  # how many videos to show in recommendations by default
+LVL_PLAY_ADD = int(var_values[10])  # how much to add per play command called
+LVL_NEXT_XP = int(var_values[11])  # how much required xp added per next level
+LVL_BASE_XP = int(var_values[12])  # base xp required for the first level
+NUM_THREADS_HIGH = int(var_values[13])  # number of threads to use for tasks that need high performance
+NUM_THREADS_LOW = int(var_values[14])  # number of threads to use for tasks that don't need as much performance
+USE_LOGIN = ast.literal_eval(var_values[15].capitalize())
+DOWNLOAD_PATH = str(var_values[16])  # download output folder
+DEFAULT_PREFIXES = ast.literal_eval(var_values[17])  # prefixes to use by default
+EXCLUDED_CASES = ast.literal_eval(var_values[18])  # list of cases to exclude from being recognized as commands
+AVAILABLE_PERMS = ast.literal_eval(var_values[19])  # all permissions available
+DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user gets by default
+ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
+USE_BUTTONS = ast.literal_eval(var_values[22].capitalize())  # to use buttons to select a song, if False uses reactions
+USE_GRADIO = ast.literal_eval(var_values[23].capitalize())  # use gradio for the user interface
+
+
 ## API KEYS ##
 with open('API_KEYS.txt', 'r') as f:
     DISCORD_APP_KEY = f.read().split("\n")[0].split("=")[1]
 if not DISCORD_APP_KEY:
-    print(f"\033[91m{discord_app_key_not_found}\033[0m")
+    print(f"\033[91mDISCORD_APP_KEY {api_key_not_found}\033[0m")
     raise Exception
 TENOR_API_KEY = utilidades.TENOR_API_KEY
+if not TENOR_API_KEY: print(f"\033[91mTENOR_API_KEY {api_key_not_found}\033[0m")
 OPENAI_KEY = utilidades.OPENAI_API_KEY
+if not OPENAI_KEY: print(f"\033[91mOPENAI_KEY {api_key_not_found}\033[0m")
 GENIUS_ACCESS_TOKEN = utilidades.GENIUS_ACCESS_TOKEN
+if not GENIUS_ACCESS_TOKEN: print(f"\033[91mGENIUS_ACCESS_TOKEN {api_key_not_found}\033[0m")
 SPOTIFY_ID = utilidades.SPOTIFY_ID
+if not SPOTIFY_ID: print(f"\033[91mSPOTIFY_ID {api_key_not_found}\033[0m")
 SPOTIFY_SECRET = utilidades.SPOTIFY_SECRET
+if not SPOTIFY_SECRET: print(f"\033[91mSPOTIFY_SECRET {api_key_not_found}\033[0m")
+
 
 ## GLOBAL VARIABLES ##
 dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
@@ -89,69 +98,6 @@ go_back, seek_called, disable_play = (False for _ in range(3))
 
 
 ## NORMAL FUNCTIONS ##
-def is_url(input_string):
-    try:
-        result = urlsplit(input_string)
-        return bool(result.scheme)
-    except ValueError:
-        return False
-
-
-def search_gif(query):
-    query = re.sub(r'[^a-zA-Z0-9 ]', '', query)
-    query = str(query).replace(' ', '+').replace('shorts', '')
-
-    try:
-        r = requests.get(f"https://tenor.googleapis.com/v2/search?q={query}&key={TENOR_API_KEY}&limit=1")
-        if r.status_code == 200:
-            if not json.loads(r.content)['results']: return None
-            return json.loads(r.content)['results'][0]['media_formats']['mediumgif']['url']
-        else:
-            return None
-
-    except requests.RequestException as e:
-        print(f"{api_request_error}: {e}")
-        return None
-
-
-def convert_seconds(seconds):
-    hours, remainder = divmod(seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours == 0:
-        return "{:0}:{:02d}".format(int(minutes), int(seconds))
-    else:
-        return "{:0}:{:02d}:{:02d}".format(int(hours), int(minutes), int(seconds))
-
-
-def convert_formated(time_str):
-    time_components = time_str.split(':')
-    num_components = len(time_components)
-    hours = 0
-    if num_components == 3:
-        hours = int(time_components[0])
-        minutes = int(time_components[1])
-        seconds = int(time_components[2])
-    elif num_components == 2:
-        minutes = int(time_components[0])
-        seconds = int(time_components[1])
-    else:
-        raise ValueError(f"{invalid_time_format}")
-    return hours * 3600 + minutes * 60 + seconds
-
-
-def check_link_type(link):
-    try:
-        playlist = Playlist(link)
-        return 'playlist', playlist.title
-    except:
-        try:
-            video = YouTube(link, use_oauth=USE_LOGIN, allow_oauth_cache=True)
-            return 'video', video.title
-        except:
-            return 'unknown', None
-
-
 def get_playlist_videos(link):
     try:
         playlist = Playlist(link)
@@ -183,13 +129,6 @@ def get_playlist_total_duration_seconds(links):
         return None
 
 
-def find_file(folder_path, file_name):
-    for filename in os.listdir(folder_path):
-        if filename.startswith(file_name) and os.path.isfile(os.path.join(folder_path, filename)):
-            return filename
-    return None
-
-
 def create_options_file(file_path):
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
@@ -210,32 +149,6 @@ def create_perms_file(ctx, file_path):
             json.dump(userdict, f)
 
 
-async def update_level_info(ctx, user_id, xp_add):
-    try:
-        server = ctx.guild
-        level_file_path = f'level_data_{server.id}.json'
-        if not os.path.exists(level_file_path):
-            await restart_levels(ctx)
-        with open(level_file_path, 'r') as json_file:
-            datos = json.load(json_file)
-        k, prev = 0, 0
-        for i in range(len(datos)):
-            if user_id == datos[i]['id']:
-                datos[i]['xp'] += xp_add
-                while True:
-                    prev = k
-                    if datos[i]['xp'] >= datos[i]['next_xp']:
-                        datos[i]['lvl'] += 1
-                        datos[i]['next_xp'] += LVL_NEXT_XP
-                        k += 1
-                    if prev == k: break
-                break
-        with open(level_file_path, 'w') as f:
-            json.dump(datos, f)
-    except:
-        traceback.print_exc()
-
-
 def on_song_end(ctx, error):
     global dict_current_song, go_back, seek_called, loop_mode
     if error:
@@ -253,28 +166,6 @@ def on_song_end(ctx, error):
         go_back = False
         if update_current_time.is_running(): update_current_time.stop()
         bot.loop.create_task(play_next(ctx))
-
-
-def get_video_info(url):
-    try:
-        return YouTube(url).title
-    except Exception as e:
-        traceback.print_exc()
-
-
-def cut_string(input_string, max_length):
-    if len(input_string) <= max_length:
-        return input_string
-
-    newline_position = input_string.rfind('\n', 0, max_length)
-    cut_position = newline_position if newline_position != -1 else max_length
-
-    return input_string[:cut_position], input_string[cut_position:]
-
-
-def format_title(title):
-    new_title = re.sub(r'[^a-zA-Z0-9 ]', '', title)
-    return new_title.replace(" ", "_") if new_title != '' else 'NoTitle'
 
 
 def change_active(ctx, mode="a"):
@@ -331,6 +222,32 @@ async def play_next(ctx):
     if queue:
         url = queue[dict_current_song[gid]]
         await ctx.invoke(bot.get_command('play'), url=url, append=False)
+
+
+async def update_level_info(ctx, user_id, xp_add):
+    try:
+        server = ctx.guild
+        level_file_path = f'level_data_{server.id}.json'
+        if not os.path.exists(level_file_path):
+            await restart_levels(ctx)
+        with open(level_file_path, 'r') as json_file:
+            datos = json.load(json_file)
+        k, prev = 0, 0
+        for i in range(len(datos)):
+            if user_id == datos[i]['id']:
+                datos[i]['xp'] += xp_add
+                while True:
+                    prev = k
+                    if datos[i]['xp'] >= datos[i]['next_xp']:
+                        datos[i]['lvl'] += 1
+                        datos[i]['next_xp'] += LVL_NEXT_XP
+                        k += 1
+                    if prev == k: break
+                break
+        with open(level_file_path, 'w') as f:
+            json.dump(datos, f)
+    except:
+        traceback.print_exc()
 
 
 bot = commands.Bot(command_prefix="DEF_PREFIX", activity=activity, intents=intents, help_command=None,
