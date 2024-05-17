@@ -104,6 +104,8 @@ if True: # only to minimize
     prefix_del_title = "Prefix removed"
     prefix_del_desc = "➤ Prefix `%prefix` has been removed. Prefixes: `%prefixes`"
     lang_changed = "Hello!"
+    vote_skip_text = "Song skip vote: %num needed."
+    song_skipped = "Song skipped."
     missing_parameters = "ATTENTION: Missing parameter, file will be rewritten and parameters will be changed to default.\nPress 'Enter' to proceed."
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
@@ -312,6 +314,8 @@ if True: # only to minimize
     prefix_del_title = "Prefijo removido"
     prefix_del_desc = "➤ El prefijo `%prefix` fue removido. Prefijos: `%prefixes`"
     lang_changed = "¡Hola!"
+    vote_skip_text = "Votación para saltar la canción: %num necesarios."
+    song_skipped = "Canción saltada."
     missing_parameters = "ATENCIÓN: Parámetro faltante, se reescribirá el archivo y los parámetros serán cambiados a sus valores por defecto.\nPresiona 'Enter' para proceder."
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."

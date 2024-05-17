@@ -39,7 +39,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 var_values = read_param()
-if len(var_values) < 24:
+if len(var_values) < 25:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     var_values = read_param()
@@ -68,6 +68,7 @@ DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user g
 ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
 USE_BUTTONS = ast.literal_eval(var_values[22].capitalize())  # to use buttons to select a song, if False uses reactions
 USE_GRADIO = ast.literal_eval(var_values[23].capitalize())  # use gradio for the user interface
+SKIP_TIMELIMIT = int(var_values[24])
 
 
 ## API KEYS ##
@@ -90,9 +91,10 @@ if not SPOTIFY_SECRET: print(f"\033[91mSPOTIFY_SECRET {api_key_not_found}\033[0m
 
 ## GLOBAL VARIABLES ##
 dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
-button_choice = dict()
+button_choice, vote_skip_dict, vote_skip_counter = dict(), dict(), dict()
+message_id_dict, majority_dict, ctx_dict_skip = dict(), dict(), dict()
 user_cooldowns = {}
-loop_mode = "off"
+loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 
@@ -109,7 +111,7 @@ def check_link_type(link):
         except:
             return 'unknown', None
 
-        
+
 def get_video_info(url):
     try:
         return YouTube(url).title
@@ -176,7 +178,9 @@ def on_song_end(ctx, error):
         seek_called = False
     else:
         gid = str(ctx.guild.id)
-        if loop_mode == 'one':
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if loop_mode[gid] == 'one':
             pass
         elif go_back:
             dict_current_song[gid] -= 1
@@ -232,9 +236,11 @@ async def play_next(ctx):
     current_song = dict_current_song[gid]
     if current_song < 0: dict_current_song[gid] = 0
     if current_song >= len(queue):
-        if loop_mode in ['queue', 'all']:
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if loop_mode[gid] in ['queue', 'all']:
             dict_current_song[gid] = 0
-        elif loop_mode in ['random', 'shuffle']:
+        elif loop_mode[gid] in ['random', 'shuffle']:
             dict_current_song[gid] = random.randint(0, len(queue) - 1)
         else:
             await leave(ctx)
@@ -368,10 +374,12 @@ async def members_left():
                 return
             if len(ctx.voice_client.channel.members) <= 1:
                 await ctx.send(random.choice(nobody_left_texts))
-                if loop_mode != "off": await loop(ctx, 'off')
+                gid = str(ctx.guild.id)
+                try: loop_mode[gid]
+                except: loop_mode[gid] = "off"
+                if loop_mode[gid] != "off": await loop(ctx, 'off')
                 await ctx.voice_client.disconnect()
                 change_active(ctx, mode='d')
-                gid = str(ctx.guild.id)
                 active_servers[gid] = 0
                 dict_queue[gid].clear()
                 del temp_ctx[gid2]
@@ -387,6 +395,44 @@ async def members_left():
         return
     except:
         traceback.print_exc()
+
+
+@tasks.loop(seconds=1)
+async def vote_skip():
+    global vote_skip_dict, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
+    if not ctx_dict_skip:
+        vote_skip.stop()
+        return
+    temp_dict = ctx_dict_skip.copy()
+    for gid in ctx_dict_skip:
+        ctx = ctx_dict_skip[gid]
+        try:
+            message_id = message_id_dict[gid]
+            majority = majority_dict[gid]
+        except:
+            continue
+        message = discord.utils.get(bot.cached_messages, id=message_id)
+        if not message:
+            continue
+        reactions = {reaction.emoji: reaction.count-1 for reaction in message.reactions}
+        if reactions["✅"] >= majority:
+            vote_skip_dict[gid], vote_skip_counter[gid] = 1, 0
+            await message.delete()
+            await ctx.send(song_skipped)
+            await skip(ctx)
+            del temp_dict[gid]
+            del message_id_dict[gid]
+            del majority_dict[gid]
+            vote_skip_dict[gid], vote_skip_counter[gid] = 1, 0
+            continue
+        if vote_skip_counter[gid] >= SKIP_TIMELIMIT-1:
+            del temp_dict[gid]
+            del message_id_dict[gid]
+            del majority_dict[gid]
+            vote_skip_dict[gid], vote_skip_counter[gid] = -1, 0
+            continue
+        vote_skip_counter[gid] += 1
+    ctx_dict_skip = temp_dict.copy()
 
 
 ## BOT COMMANDS ##
@@ -641,7 +687,10 @@ async def rewind(ctx):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
         global loop_mode, go_back
-        if loop_mode == 'one': loop_mode = 'off'
+        gid = str(ctx.guild.id)
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         go_back = True
         if ctx.voice_client.is_paused(): ctx.voice_client.resume()
         if ctx.voice_client.is_playing(): ctx.voice_client.stop()
@@ -676,14 +725,16 @@ async def leave(ctx):
             return
         global loop_mode, dict_current_song, dict_current_time, disable_play
         if not ctx.author.voice: return
-        if loop_mode != "off": await loop(ctx, 'off')
+        gid = str(ctx.guild.id)
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if loop_mode[gid] != "off": await loop(ctx, 'off')
         try:
             await ctx.voice_client.disconnect()
         except:
             traceback.print_exc()
             pass
         change_active(ctx, mode='d')
-        gid = str(ctx.guild.id)
         try: dict_queue[gid].clear()
         except: pass
         disable_play = False
@@ -899,7 +950,7 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
         if not check_perms(ctx, "use_play"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
-        global dict_current_song, dict_current_time, disable_play, ctx_dict
+        global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
         gid = str(ctx.guild.id)
         if disable_play: return
         if not ctx.author.voice:
@@ -1081,6 +1132,7 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
 
             # LVL HANDLE
             await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
+            vote_skip_dict[gid] = -1
             if not ctx.voice_client.is_paused():
                 ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path), after=lambda e: on_song_end(ctx, e))
         else:
@@ -1289,13 +1341,16 @@ async def loop(ctx, mode="change"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
         global loop_mode
-        if mode == "change": mode = "all" if loop_mode == "off" else "off"
+        gid = str(ctx.guild.id)
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
         if mode not in ['queue', 'all', 'shuffle', 'random', 'one', 'off']:
             await ctx.send(not_loop_mode.replace("%mode", str(mode)),
                            reference=ctx.message)
             return
-        loop_mode = str(mode)
-        await ctx.send(loop_mode_changed.replace("%loop", loop_mode) if loop_mode != 'off' else loop_disable, reference=ctx.message)
+        loop_mode[gid] = str(mode)
+        await ctx.send(loop_mode_changed.replace("%loop", loop_mode[gid]) if loop_mode[gid] != 'off' else loop_disable, reference=ctx.message)
     except:
         traceback.print_exc()
 
@@ -1347,7 +1402,6 @@ async def cola(ctx):
             description=titletext,
             color=EMBED_COLOR
         )
-        print(dict_queue, "\n", dict_current_song)
         await ctx.send(embed=embed, reference=ctx.message)
     except:
         traceback.print_exc()
@@ -1380,11 +1434,32 @@ async def resume(ctx):
 @bot.command(name='skip', aliases=['s', 'next'])
 async def skip(ctx):
     try:
-        if not check_perms(ctx, "use_skip"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
-            return
-        global loop_mode
-        if loop_mode == 'one': loop_mode = 'off'
+        global vote_skip_dict, loop_mode, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
+        gid = str(ctx.guild.id)
+        if vote_skip_dict[gid] == -1:
+            if not ctx.voice_client:
+                await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message)
+                return
+            if not check_perms(ctx, "use_skip"):
+                if not check_perms(ctx, "use_vote_skip"):
+                    await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
+                    return
+                members = ctx.voice_client.channel.members
+                member_amount = len(members) - 1
+                majority = round(member_amount/2)
+                vote_message = await ctx.send(vote_skip_text.replace("%num", str(majority)))
+                await vote_message.add_reaction("❌")
+                await vote_message.add_reaction("✅")
+                await asyncio.sleep(1)
+                vote_skip_dict[gid], vote_skip_counter[gid] = 0, 0
+                message_id_dict[gid], majority_dict[gid] = vote_message.id, majority
+                ctx_dict_skip[gid] = ctx
+                vote_skip.start()
+        if vote_skip_dict[gid] == 0: return
+        vote_skip_dict[gid], vote_skip_counter[gid] = -1, 0
+        try: loop_mode[gid]
+        except: loop_mode[gid] = "off"
+        if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         if ctx.voice_client.is_paused(): ctx.voice_client.resume()
         if ctx.voice_client.is_playing(): ctx.voice_client.stop()
     except:
@@ -1492,7 +1567,6 @@ async def lyrics(ctx, *, query=None):
             titulo = query
         artista = utilidades.get_spotify_artist(titulo, is_song=True)
         cancion = utilidades.get_spotify_song(titulo)
-        print(artista, cancion)
         if not all([artista, cancion]):
             await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message)
             return
