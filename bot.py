@@ -571,7 +571,7 @@ async def add_perm(ctx, name, perm):
                             user_perms[str(member.id)] = DEFAULT_USER_PERMS
                     if perm in AVAILABLE_PERMS:
                         if perm in user_perms[str(member.id)]:
-                            await ctx.send(perm_already_exists.replace("%name", member.name).replace("%perm", perm))
+                            await ctx.send(perm_already_added.replace("%name", member.name).replace("%perm", perm))
                             break
                         user_perms[str(member.id)].append(perm)
                         await ctx.send(perm_added.replace("%perm", perm).replace("%name", member.name))
