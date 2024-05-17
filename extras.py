@@ -1,8 +1,6 @@
 import os, re, json
 import requests
 from urllib.parse import urlsplit
-try: from pytube import YouTube, Playlist, exceptions
-except: pass
 
 def write_param():
     with open('PARAMETERS.txt', 'w') as f:
@@ -73,18 +71,6 @@ def search_gif(query):
         return None
 
 
-def check_link_type(link):
-    try:
-        playlist = Playlist(link)
-        return 'playlist', playlist.title
-    except:
-        try:
-            video = YouTube(link, use_oauth=USE_LOGIN, allow_oauth_cache=True)
-            return 'video', video.title
-        except:
-            return 'unknown', None
-
-
 def find_file(folder_path, file_name):
     for filename in os.listdir(folder_path):
         if filename.startswith(file_name) and os.path.isfile(os.path.join(folder_path, filename)):
@@ -105,10 +91,3 @@ def cut_string(input_string, max_length):
     cut_position = newline_position if newline_position != -1 else max_length
 
     return input_string[:cut_position], input_string[cut_position:]
-
-
-def get_video_info(url):
-    try:
-        return YouTube(url).title
-    except Exception as e:
-        traceback.print_exc()

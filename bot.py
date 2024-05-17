@@ -98,6 +98,25 @@ go_back, seek_called, disable_play = (False for _ in range(3))
 
 
 ## NORMAL FUNCTIONS ##
+def check_link_type(link):
+    try:
+        playlist = Playlist(link)
+        return 'playlist', playlist.title
+    except:
+        try:
+            video = YouTube(link, use_oauth=USE_LOGIN, allow_oauth_cache=True)
+            return 'video', video.title
+        except:
+            return 'unknown', None
+
+        
+def get_video_info(url):
+    try:
+        return YouTube(url).title
+    except Exception as e:
+        traceback.print_exc()
+
+
 def get_playlist_videos(link):
     try:
         playlist = Playlist(link)
