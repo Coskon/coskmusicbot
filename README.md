@@ -11,6 +11,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Lots of easily adjustable parameters.
 - English and Spanish languages.
 - Gradio UI.
+- Majority skip for users without permission.
 - And more...
 
 ## Limitations
@@ -24,6 +25,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 ## Known bugs
 - If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it should be a huge problem)
 - Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.
+- Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.
 
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
@@ -52,7 +54,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video.
 - `fastplay [query]`: Works the same as `play`, but skips having to choose.
 - `leave`: Disconnects the bot from the voice channel and clears the song queue.
-- `skip`: Skips to the next song, leaves if its the last song (unless loop is enabled).
+- `skip`: Skips to the next song, leaves if its the last song (unless loop is enabled). For users without permission, initiates a skip vote.
 - `rewind`: Goes back to the previous song.
 - `join`: Connects to the voice channel.
 - `pause`: Pauses the current song.
@@ -87,10 +89,11 @@ You can see aliases for each command using the bot. If you want to change the na
 
 ## To be added
 A list of things that might get added:
-- [ ] Majority vote to skip/rewind for users without permission.
+- [X] ~~Majority vote to skip/rewind for users without permission~~. (might be buggy, needs more testing)
 - [ ] More info to the `steam` command.
 - [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
 - [ ] Spotify support to play songs and playlists.
 - [X] ~~Languages.~~
 - [X] ~~User interface.~~ (kinda, will be modified)
 - [ ] Easier command customization.
+- [ ] Linux/MAC support.
