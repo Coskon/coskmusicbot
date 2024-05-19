@@ -178,8 +178,7 @@ def on_song_end(ctx, error):
         seek_called = False
     else:
         gid = str(ctx.guild.id)
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one':
             pass
         elif go_back:
@@ -236,8 +235,7 @@ async def play_next(ctx):
     current_song = dict_current_song[gid]
     if current_song < 0: dict_current_song[gid] = 0
     if current_song >= len(queue):
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] in ['queue', 'all']:
             dict_current_song[gid] = 0
         elif loop_mode[gid] in ['random', 'shuffle']:
@@ -322,6 +320,7 @@ async def on_message(message):
         succ = False
         for prefix in options['custom_prefixes']:
             if message.content.startswith(prefix):
+                if message.content[len(prefix):] in EXCLUDED_CASES: return
                 print(f'\033[92m>>> {command_from} {message.author}: {message.content[len(prefix):]}\033[0m')
                 message.content = 'DEF_PREFIX' + message.content[len(prefix):]
                 if message.author.id in user_cooldowns:
@@ -375,8 +374,7 @@ async def members_left():
             if len(ctx.voice_client.channel.members) <= 1:
                 await ctx.send(random.choice(nobody_left_texts))
                 gid = str(ctx.guild.id)
-                try: loop_mode[gid]
-                except: loop_mode[gid] = "off"
+                loop_mode[gid] = loop_mode.setdefault(gid, "off")
                 if loop_mode[gid] != "off": await loop(ctx, 'off')
                 await ctx.voice_client.disconnect()
                 change_active(ctx, mode='d')
@@ -408,13 +406,16 @@ async def vote_skip():
         ctx = ctx_dict_skip[gid]
         try:
             message_id = message_id_dict[gid]
-            majority = majority_dict[gid]
+            majority = majority_dict[gid][0]
         except:
             continue
         message = discord.utils.get(bot.cached_messages, id=message_id)
         if not message:
             continue
-        reactions = {reaction.emoji: reaction.count-1 for reaction in message.reactions}
+        reactions = {reaction.emoji: -1 for reaction in message.reactions}
+        for reaction in message.reactions:
+            async for user in reaction.users():
+                if user.id in majority_dict[gid][1]: reactions[reaction.emoji] += 1
         if reactions["✅"] >= majority:
             vote_skip_dict[gid], vote_skip_counter[gid] = 1, 0
             await message.delete()
@@ -539,13 +540,7 @@ async def add_perm(ctx, name, perm):
         if name == "ALL" or name == "*":
             P = 1
             for member in server.members:
-                try:
-                    user_perms[str(member.id)]
-                except:
-                    if member.guild_permissions.administrator:
-                        user_perms[str(member.id)] = ADMIN_PERMS
-                    else:
-                        user_perms[str(member.id)] = DEFAULT_USER_PERMS
+                user_perms[str(member.id)] = user_perms.setdefault(str(member.id), ADMIN_PERMS if member.guild_permissions.administrator else DEFAULT_USER_PERMS)
                 if perm in AVAILABLE_PERMS:
                     if perm not in user_perms[str(member.id)]: user_perms[str(member.id)].append(perm)
                 elif perm in ["ALL", "*"]:
@@ -606,13 +601,7 @@ async def del_perm(ctx, name, perm):
         if name == "ALL" or name == "*":
             P = True
             for member in server.members:
-                try:
-                    user_perms[str(member.id)]
-                except:
-                    if member.guild_permissions.administrator:
-                        user_perms[str(member.id)] = ADMIN_PERMS
-                    else:
-                        user_perms[str(member.id)] = DEFAULT_USER_PERMS
+                user_perms[str(member.id)] = user_perms.setdefault(str(member.id), ADMIN_PERMS if member.guild_permissions.administrator else DEFAULT_USER_PERMS)
                 if perm in AVAILABLE_PERMS:
                     if perm in user_perms[str(member.id)]: user_perms[str(member.id)].remove(perm)
                 else:
@@ -625,13 +614,7 @@ async def del_perm(ctx, name, perm):
             for member in server.members:
                 if member.name in [name, name.lower()]:
                     P = True
-                    try:
-                        user_perms[str(member.id)]
-                    except:
-                        if member.guild_permissions.administrator:
-                            user_perms[str(member.id)] = ADMIN_PERMS
-                        else:
-                            user_perms[str(member.id)] = DEFAULT_USER_PERMS
+                    user_perms[str(member.id)] = user_perms.setdefault(str(member.id), ADMIN_PERMS if member.guild_permissions.administrator else DEFAULT_USER_PERMS)
                     if perm in AVAILABLE_PERMS:
                         if perm not in user_perms[str(member.id)]:
                             await ctx.send(perm_not_added.replace("%name", member.name).replace("%perm", perm))
@@ -688,8 +671,7 @@ async def rewind(ctx):
             return
         global loop_mode, go_back
         gid = str(ctx.guild.id)
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         go_back = True
         if ctx.voice_client.is_paused(): ctx.voice_client.resume()
@@ -726,8 +708,7 @@ async def leave(ctx):
         global loop_mode, dict_current_song, dict_current_time, disable_play
         if not ctx.author.voice: return
         gid = str(ctx.guild.id)
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] != "off": await loop(ctx, 'off')
         try:
             await ctx.voice_client.disconnect()
@@ -1065,7 +1046,7 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
                 durt, sec = 1, convert_seconds(get_playlist_total_duration_seconds(links))
             embed_playlist.add_field(
                 name=playlist_link,
-                value=playlist_link_desc.replace("%url", url).replace("%title", vtype[1])+durt*playlist_link_desc_timeEN.replace("%duration", str(sec)))
+                value=playlist_link_desc.replace("%url", url).replace("%title", vtype[1])+durt*playlist_link_desc_time.replace("%duration", str(sec)))
         else:
             links = [url]
         yt = YouTube(links[0], use_oauth=USE_LOGIN, allow_oauth_cache=True)
@@ -1109,11 +1090,8 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
         except:
             audio_stream = sorted_streams[0]
         if append:
-            try:
-                dict_queue[gid]
-            except:
-                dict_queue[gid] = list()
-                dict_current_song[gid] = 0
+            dict_queue[gid] = dict_queue.setdefault(gid, list())
+            dict_current_song[gid] = dict_current_song.setdefault(gid, 0)
             for video in links: dict_queue[gid].append(video)
         if audio_stream:
             audio_stream.download(output_path=DOWNLOAD_PATH)
@@ -1342,8 +1320,7 @@ async def loop(ctx, mode="change"):
             return
         global loop_mode
         gid = str(ctx.guild.id)
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
         if mode not in ['queue', 'all', 'shuffle', 'random', 'one', 'off']:
             await ctx.send(not_loop_mode.replace("%mode", str(mode)),
@@ -1452,13 +1429,12 @@ async def skip(ctx):
                 await vote_message.add_reaction("✅")
                 await asyncio.sleep(1)
                 vote_skip_dict[gid], vote_skip_counter[gid] = 0, 0
-                message_id_dict[gid], majority_dict[gid] = vote_message.id, majority
+                message_id_dict[gid], majority_dict[gid] = vote_message.id, [majority, list(user.id for user in ctx.voice_client.channel.members)]
                 ctx_dict_skip[gid] = ctx
                 vote_skip.start()
         if vote_skip_dict[gid] == 0: return
         vote_skip_dict[gid], vote_skip_counter[gid] = -1, 0
-        try: loop_mode[gid]
-        except: loop_mode[gid] = "off"
+        loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         if ctx.voice_client.is_paused(): ctx.voice_client.resume()
         if ctx.voice_client.is_playing(): ctx.voice_client.stop()
