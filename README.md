@@ -31,8 +31,8 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
 - Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
-- Run the `start.bat` script to initialize the bot.
-- **(If `start.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
+- Run the `run.bat` script to initialize the bot.
+- **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
     ```console
     python.exe -m venv venv
     venv\Scripts\activate
@@ -46,7 +46,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`.
 - This script was only tested on WINDOWS, it might not work on other OS.
-- If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and run the `options default` or `add_prefix [prefix]` commands.
+- If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and  the `options default` or `add_prefix [prefix]` commands.
 
 ## Command list
 You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
