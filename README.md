@@ -23,9 +23,9 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
 
 ## Known bugs
-- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it should be a huge problem)
+- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it shouldn't be a huge problem)
 - Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.
-- Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.
+- ~~Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.~~ I lied, it is fixed.
 
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
