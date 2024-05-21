@@ -31,7 +31,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 
 ### Guide for cloud services
 If you don't want to have your computer running the bot or you want/need for it to be always active, you may need to use a cloud service.
-I found "Replit" as a free alternative, so i'll use that as the base, but following the general guide should work.
+I found "Replit" as a free alternative (you can go [here](https://replit.com/@mcgamescompany/Cosk-Music-Bot?v=1#main.py) and press "Use Template"), so i'll use that as the base, but following the general guide should work.
 - Go to your chosen service and create a project. For Replit, select the "python discord bot" template.
 - Upload the files; `bot.py` (you may rename it to `main.py` if necessary, as it is the case for Replit), `lang.py` in the folder `lang`, `extras.py`, `utilidades.py` and optionally other files.
 - Set the secrets/enviroment variables (recommended for security reasons): `DISCORD_APP_KEY`, optionally; `TENOR_API_KEY`, `OPENAI_KEY`, `GENIUS_ACCESS_TOKEN`, `SPOTIFY_ID`, `SPOTIFY_SECRET`. Alternatively, you may set them in the `API_KEYS.txt` file, however this is not recommended, given that is a public site (specially in Replit, where the code is public for the free plan), using enviroment variables is better (and often easier) in this case.
