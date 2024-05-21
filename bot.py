@@ -38,37 +38,13 @@ globals().update(lang_dict)
 
 
 ## PARAMETER VARIABLES ##
-var_values = read_param()
-if len(var_values) < 25:
+parameters = read_param()
+if len(parameters.keys()) < 25:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
-    var_values = read_param()
+    parameters = read_param()
 
-BOT_NAME = str(var_values[0])  # name of your bot
-MAX_VIDEO_LENGTH = int(var_values[1])  # in seconds
-PLAYLIST_MAX_LIMIT = int(var_values[2])  # max videos on playlist
-PLAYLIST_TIME_LIMIT = int(var_values[3])  # max videos to see their total duration
-TIMELIMIT = int(var_values[4])  # (in seconds) timelimit for the popup of the search choice embed
-REQUEST_LIMIT = float(var_values[5])  # (in seconds) time should pass between command calls from each user
-MEMBERS_LEFT_TIMEOUT = int(var_values[6])  # (in seconds) time between each check for members left
-EMBED_COLOR = int(var_values[7], 16)  # color for the side of the embed
-DEFAULT_SEARCH_LIMIT = int(var_values[8])  # how many videos to show using the search command by default
-DEFAULT_RECOMMENDATION_LIMIT = int(var_values[9])  # how many videos to show in recommendations by default
-LVL_PLAY_ADD = int(var_values[10])  # how much to add per play command called
-LVL_NEXT_XP = int(var_values[11])  # how much required xp added per next level
-LVL_BASE_XP = int(var_values[12])  # base xp required for the first level
-NUM_THREADS_HIGH = int(var_values[13])  # number of threads to use for tasks that need high performance
-NUM_THREADS_LOW = int(var_values[14])  # number of threads to use for tasks that don't need as much performance
-USE_LOGIN = ast.literal_eval(var_values[15].capitalize())
-DOWNLOAD_PATH = str(var_values[16])  # download output folder
-DEFAULT_PREFIXES = ast.literal_eval(var_values[17])  # prefixes to use by default
-EXCLUDED_CASES = ast.literal_eval(var_values[18])  # list of cases to exclude from being recognized as commands
-AVAILABLE_PERMS = ast.literal_eval(var_values[19])  # all permissions available
-DEFAULT_USER_PERMS = ast.literal_eval(var_values[20])  # permissions each user gets by default
-ADMIN_PERMS = ast.literal_eval(var_values[21])  # permissions admin users get by default
-USE_BUTTONS = ast.literal_eval(var_values[22].capitalize())  # to use buttons to select a song, if False uses reactions
-USE_GRADIO = ast.literal_eval(var_values[23].capitalize())  # use gradio for the user interface
-SKIP_TIMELIMIT = int(var_values[24])
+globals().update(parameters)
 
 
 ## API KEYS ##
@@ -376,7 +352,8 @@ async def members_left():
                 gid = str(ctx.guild.id)
                 loop_mode[gid] = loop_mode.setdefault(gid, "off")
                 if loop_mode[gid] != "off": await loop(ctx, 'off')
-                await ctx.voice_client.disconnect()
+                try: await ctx.voice_client.disconnect()
+                except: pass
                 change_active(ctx, mode='d')
                 active_servers[gid] = 0
                 dict_queue[gid].clear()
@@ -686,10 +663,12 @@ async def join(ctx):
         if not check_perms(ctx, "use_join"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message)
+            return None
         if ctx.voice_client is not None and ctx.voice_client.is_connected():
             await ctx.send(random.choice(already_connected_texts), reference=ctx.message)
             return
-        if not ctx.author.voice: return None
         channel = ctx.author.voice.channel
         await channel.connect()
         change_active(ctx, mode='a')
@@ -706,12 +685,20 @@ async def leave(ctx):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
             return
         global loop_mode, dict_current_song, dict_current_time, disable_play
-        if not ctx.author.voice: return
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message)
+            return
+        bot_vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        if not bot_vc:
+            await ctx.send(random.choice(not_connected_texts), reference=ctx.message)
+            return
+        if ctx.author.voice.channel != bot_vc.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message)
+            return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] != "off": await loop(ctx, 'off')
-        try:
-            await ctx.voice_client.disconnect()
+        try: await ctx.voice_client.disconnect()
         except:
             traceback.print_exc()
             pass
@@ -926,7 +913,7 @@ async def genre(ctx, *, query=""):
 
 
 @bot.command(name='play', aliases=['p'])
-async def play(ctx, *, url, append=True, gif=False, search=True):
+async def play(ctx, *, url="", append=True, gif=False, search=True):
     try:
         if not check_perms(ctx, "use_play"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message)
@@ -936,6 +923,9 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
         if disable_play: return
         if not ctx.author.voice:
             await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message)
+            return
+        if not url:
+            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message)
             return
         voice_channel = ctx.author.voice.channel
 
@@ -990,7 +980,9 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
                     menu = SongChooseMenu(gid)
                     message = await ctx.send(embed=choice_embed, view=menu)
                     try:
-                        await bot.wait_for('interaction', timeout=TIMELIMIT, check=lambda _: True)
+                        def check(intrc: discord.interactions.Interaction):
+                            if intrc.user.id == ctx.author.id: return True
+                        await bot.wait_for('interaction', timeout=TIMELIMIT, check=check)
                     except asyncio.TimeoutError:
                         await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message)
                         await message.delete()
@@ -1112,7 +1104,8 @@ async def play(ctx, *, url, append=True, gif=False, search=True):
             await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
             vote_skip_dict[gid] = -1
             if not ctx.voice_client.is_paused():
-                ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path), after=lambda e: on_song_end(ctx, e))
+                try: ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path), after=lambda e: on_song_end(ctx, e))
+                except: pass
         else:
             await ctx.send(random.choice(rip_audio_texts), reference=ctx.message)
     except exceptions.VideoUnavailable:
@@ -1413,6 +1406,7 @@ async def skip(ctx):
     try:
         global vote_skip_dict, loop_mode, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
         gid = str(ctx.guild.id)
+        vote_skip_dict.setdefault(gid, -1)
         if vote_skip_dict[gid] == -1:
             if not ctx.voice_client:
                 await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message)

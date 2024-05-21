@@ -25,6 +25,8 @@ if True: # only to minimize
     no_game_texts = ["Game not available."]
     no_api_key_texts = ["This function is disabled."]
     insuff_perms_texts = ["You don't have permission to do this."]
+    not_connected_texts = ["I'm not connected to a voice channel."]
+    different_channel_texts = ["We are not in the same channel."]
     api_key_not_found = "not found. Go into 'API_KEYS.txt' to set it."
     api_request_error = "Error making API request"
     invalid_time_format = "Invalid time format. Please use either HH:MM:SS or MM:SS."
@@ -235,6 +237,8 @@ if True: # only to minimize
     lyrics_too_long_texts = ["La letra es muy larga."]
     no_api_key_texts = ["Esta funcionalidad está desactivada."]
     insuff_perms_texts = ["No tienes permisos para usar esto."]
+    not_connected_texts = ["No estoy conectado a un canal de voz."]
+    different_channel_texts = ["No estamos en el mismo canal."]
     api_key_not_found = "no encontrado. Ir a 'API_KEYS.txt' para configurarlo."
     api_request_error = "Error en la solicitud de API"
     invalid_time_format = "Formato del tiempo inválido. Usar HH:MM:SS o MM:SS."
