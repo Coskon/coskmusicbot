@@ -48,21 +48,32 @@ globals().update(parameters)
 
 
 ## API KEYS ##
-with open('API_KEYS.txt', 'r') as f:
-    DISCORD_APP_KEY = f.read().split("\n")[0].split("=")[1]
+USE_PRIVATE_TOKENS = False
+if USE_PRIVATE_TOKENS:
+    DISCORD_APP_KEY = os.getenv('DISCORD_APP_KEY')
+else:
+    with open('API_KEYS.txt', 'r') as f:
+        DISCORD_APP_KEY = f.read().split("\n")[0].split("=")[1]
+
+TENOR_API_KEY = utilidades.TENOR_API_KEY
+OPENAI_KEY = utilidades.OPENAI_API_KEY
+GENIUS_ACCESS_TOKEN = utilidades.GENIUS_ACCESS_TOKEN
+SPOTIFY_ID = utilidades.SPOTIFY_ID
+SPOTIFY_SECRET = utilidades.SPOTIFY_SECRET
+
 if not DISCORD_APP_KEY:
     print(f"\033[91mDISCORD_APP_KEY {api_key_not_found}\033[0m")
     raise Exception
-TENOR_API_KEY = utilidades.TENOR_API_KEY
-if not TENOR_API_KEY: print(f"\033[91mTENOR_API_KEY {api_key_not_found}\033[0m")
-OPENAI_KEY = utilidades.OPENAI_API_KEY
-if not OPENAI_KEY: print(f"\033[91mOPENAI_KEY {api_key_not_found}\033[0m")
-GENIUS_ACCESS_TOKEN = utilidades.GENIUS_ACCESS_TOKEN
-if not GENIUS_ACCESS_TOKEN: print(f"\033[91mGENIUS_ACCESS_TOKEN {api_key_not_found}\033[0m")
-SPOTIFY_ID = utilidades.SPOTIFY_ID
-if not SPOTIFY_ID: print(f"\033[91mSPOTIFY_ID {api_key_not_found}\033[0m")
-SPOTIFY_SECRET = utilidades.SPOTIFY_SECRET
-if not SPOTIFY_SECRET: print(f"\033[91mSPOTIFY_SECRET {api_key_not_found}\033[0m")
+if not TENOR_API_KEY:
+    print(f"\033[91mTENOR_API_KEY {api_key_not_found}\033[0m")
+if not OPENAI_KEY:
+    print(f"\033[91mOPENAI_KEY {api_key_not_found}\033[0m")
+if not GENIUS_ACCESS_TOKEN:
+    print(f"\033[91mGENIUS_ACCESS_TOKEN {api_key_not_found}\033[0m")
+if not SPOTIFY_ID:
+    print(f"\033[91mSPOTIFY_ID {api_key_not_found}\033[0m")
+if not SPOTIFY_SECRET:
+    print(f"\033[91mSPOTIFY_SECRET {api_key_not_found}\033[0m")
 
 
 ## GLOBAL VARIABLES ##
