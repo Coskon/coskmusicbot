@@ -14,19 +14,6 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Majority skip for users without permission.
 - And more...
 
-## Limitations
-- Only supports YouTube.
-- Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
-- ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
-- It has to download each video mp3, so it's limited by the host internet speed and disk space.
-- Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
-- User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
-
-## Known bugs
-- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it shouldn't be a huge problem)
-- Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.
-- ~~Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.~~ I lied, it is fixed.
-
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
@@ -46,7 +33,20 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`.
 - This script was only tested on WINDOWS, it might not work on other OS.
-- If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and  the `options default` or `add_prefix [prefix]` commands.
+- If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
+
+## Limitations
+- Only supports YouTube.
+- Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
+- ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
+- It has to download each video mp3, so it's limited by the host internet speed and disk space.
+- Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
+- User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
+
+## Known bugs
+- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it shouldn't be a huge problem)
+- ~~Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.~~ Not anymore!
+- ~~Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.~~ I lied, it is fixed.
 
 ## Command list
 You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
@@ -89,7 +89,7 @@ You can see aliases for each command using the bot. If you want to change the na
 
 ## To be added
 A list of things that might get added:
-- [X] ~~Majority vote to skip/rewind for users without permission~~. (might be buggy, needs more testing)
+- [X] ~~Majority vote to skip/rewind for users without permission.~~
 - [ ] More info to the `steam` command.
 - [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
 - [ ] Spotify support to play songs and playlists.
