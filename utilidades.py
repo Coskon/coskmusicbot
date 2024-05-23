@@ -82,7 +82,8 @@ def convert_seconds(seconds):
 
 
 def get_bar(total, progress, length=20):
-    filled_length = int(length * progress // total)
+    if total == 0: filled_length = 0
+    else: filled_length = int(length * progress // total)
     bar = '█' * filled_length + '░' * (length - filled_length)
     return f"[:arrow_forward:|:pause_button:|:stop_button:] {bar} [`{convert_seconds(progress)}`/`{convert_seconds(total)}`]"
 

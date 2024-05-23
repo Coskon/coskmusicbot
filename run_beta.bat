@@ -15,6 +15,6 @@ pip install -r requirements_beta.txt
 pip install --upgrade youtube-dl
 
 python.exe lang\lang.py
-python.exe bot.py
+python.exe bot_beta.py
 
 PAUSE
