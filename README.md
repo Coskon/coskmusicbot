@@ -1,12 +1,16 @@
 # Coskquin: Cosk Music Bot
-A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so there are variable names in spanish, it's not commented (might add later) and in general it's better to add things that don't rely on the stuff that is already there (for example, you may add a command that retrieves information from a webpage, but don't try adding spotify support).
+A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so there are variable names in spanish, it's not commented (might add later) and in general it's better to add things that don't rely on the stuff that is already there (for example, you may add a command that retrieves information from a webpage, but don't try adding spotify support).  
+### NOW IN BETA 
+Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).
 ## Features
 - User permissions for each command (by default, admins get all permissions and everyone else have a default set of permissions which you can change in the code).
 - Can be used in multiple servers at the same time, with each one having its own.
 - Can have and modify multiple prefixes, even non single-characters prefixes.
 - Very simple level system.
 - Commands to show your pfp, a steam profile, use chatgpt, etc...
-- Use YouTube URLs or choose from 5 results.
+- Use YouTube URLs or search, choosing from songs on multiple pages.
+- Playlists.
+- Livestreams (*only in beta*)
 - Time limitation between command calls.
 - Lots of easily adjustable parameters.
 - English and Spanish languages.
@@ -14,11 +18,18 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 - Majority skip for users without permission.
 - And more...
 
+## Recently added
+- Changed the amount of buttons to 10 (the reactions didnt change). Now, appart from choosing from 1 of the 5 songs available, you can change pages to see more results, choose all songs in the chosen page or select a random one in that page. The timeout limit works normally, with a maximum of 60 button interactions (safe limit). The search limit for these videos can be changed in the parameters, by default is double the number of threads to use, though that is only significant in the beta, and apparently pytube only searches up to 18 results anyways. This will probably be changed for the option 'search_limit' to make it server-independant.
+- New beta feature (see above).
+- Changed the code significantly to have better performance; before, it would save the URLs of each song and request the data each time it was needed, now it saves the "YouTube" object itself along with some other info. Now, appart from the downloading of the songs that is still pretty slow, it can access the queue much faster, change between songs faster (if the song was already downloaded), and in general the bot feels a little bit more responsive.
+- Parameter to enable or disable references on each bot message, in case it bothers you.
+- Minor bug fixes.
+
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
 - Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
-- Run the `run.bat` script to initialize the bot.
+- Run the `run.bat` script to initialize the bot (or `run_beta.bat` to run the beta).
 - **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
     ```console
     python.exe -m venv venv
@@ -46,6 +57,13 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
+
+## Beta disclaimer
+As the name indicates, it's in beta. It will not work as expected, at least not 100% of the time, have that in mind.  
+Current beta feature: *Streaming audio instead of downloading it*.  
+Why is in beta: *Very important errors that are yet to fix, like the bot skipping/disconnecting without reason, and minor ones like it can't access age restricted videos.*  
+Possible causes: *I have no idea, my guess is the thread execution causing some trouble.*
+Possible solutions: *Use other library, i tried yt_dlp but i couldn't make it run faster with threads, so it was painfully slow. I'll keep searching for a way to get the audio stream url. For the age restriction, maybe it can be bypassed with some options youtube-dl has.*  
 
 ## Limitations
 - Only supports YouTube.
@@ -84,7 +102,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `songs [number] [artist]`: Shows the top "number" (10 by default) songs from the specified artist. If no artist is given, it will retrieve it from the song currently playing. **Requires Spotify API**
 - `genre [genre]`: Shows songs of the given genre. If no genre is specified, shows the list of available genres to search. **Requires Spotify API**
 - `search [platform] [query]`: Searches in youtube (by default) or spotify the given query and shows the results. **Requires Spotify API**
-- `pitch [semitones]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch).
+- `pitch [semitones] [change speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). (*only beta: If change speed is provided (anything at all), it will change the speed of the song along with the pitch.*)
 - `steam [user]`: Shows the steam profile of the specified user.
 - `ping`: Shows the bot latency.
 - `pfp`: Shows your profile picture.
@@ -109,3 +127,4 @@ A list of things that might get added:
 - [X] ~~User interface.~~ (kinda, will be modified)
 - [ ] Easier command customization.
 - [ ] Linux/MAC support.
+- [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc)
