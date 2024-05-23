@@ -1,7 +1,10 @@
 # Coskquin: Cosk Music Bot
 A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so there are variable names in spanish, it's not commented (might add later) and in general it's better to add things that don't rely on the stuff that is already there (for example, you may add a command that retrieves information from a webpage, but don't try adding spotify support).  
 ### NOW IN BETA 
-Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).
+Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).  
+Spotify support (convert from spotify to youtube). Right now is painfully slow, i'll try to take a similar approach to how i handle youtube playlists in the future, to at least initialize faster. Most spotify links + codes should work of tracks, albums and playlists, though for now it's too slow to be actually useful.  
+Added support to play directly raw audio urls (such as the ones obtained from the yt downloader).  
+Switched to yt-dlp, it's not really faster but it seems more stable, but audios sometimes still cut after some time, though it seems to be only when searching. Because of this change, changing the youtube_dl code to fix a bug isn't necessary anymore, and it can access age restricted videos without problem (however, you can put a 'cookies.txt' file in the main folder in case you have some problems with it).
 ## Features
 - User permissions for each command (by default, admins get all permissions and everyone else have a default set of permissions which you can change in the code).
 - Can be used in multiple servers at the same time, with each one having its own.
@@ -11,6 +14,7 @@ Changed from downloading the videos to streaming them, allowing for faster respo
 - Use YouTube URLs or search, choosing from songs on multiple pages.
 - Playlists.
 - Livestreams (*only in beta*)
+- Spotify to youtube conversion (*only in beta*)
 - Time limitation between command calls.
 - Lots of easily adjustable parameters.
 - English and Spanish languages.
@@ -24,6 +28,7 @@ Changed from downloading the videos to streaming them, allowing for faster respo
 - Changed the code significantly to have better performance; before, it would save the URLs of each song and request the data each time it was needed, now it saves the "YouTube" object itself along with some other info. Now, appart from the downloading of the songs that is still pretty slow, it can access the queue much faster, change between songs faster (if the song was already downloaded), and in general the bot feels a little bit more responsive.
 - Parameter to enable or disable references on each bot message, in case it bothers you.
 - There should be more support for different youtube links, even weird ones.
+- Support for shortened links, any type. Slightly slower so i recommend using normal urls.
 - Minor bug fixes.
 
 ## Installation Guide
@@ -56,22 +61,22 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Important
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")
-- If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`. 
+- ~~If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`.~~ No longer necessary.
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
 
 ## Beta disclaimer
 As the name indicates, it's in beta. It will not work as expected, at least not 100% of the time, have that in mind.  
 Current beta feature: *Streaming audio instead of downloading it*.  
-Why is in beta: *Very important errors that are yet to fix, like the bot skipping/disconnecting without reason, and minor ones like it can't access age restricted videos.*  
-Possible causes: *I have no idea, my guess is the thread execution causing some trouble.*
-Possible solutions: *Use other library, i tried yt_dlp but i couldn't make it run faster with threads, so it was painfully slow. I'll keep searching for a way to get the audio stream url. For the age restriction, maybe it can be bypassed with some options youtube-dl has.*  
+Why is in beta: *The bot cuts/disconnects/skips the audio, apparently only when searching for a song. Until i find a definite solution this will be in beta.*  
+Possible causes: *No idea.*
+Possible solutions: *Maybe make sure the bot doesnt play anything if there's something already on, not even to check for errors.*
 
 ## Limitations
 - Only supports YouTube.
 - Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
 - ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
-- It has to download each video mp3, so it's limited by the host internet speed and disk space.
+- It has to download each video mp3, so it's limited by the host internet speed and disk space. (*in the beta it doesn't, but it's still limited by internet speed*)
 - Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
 - User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
 
