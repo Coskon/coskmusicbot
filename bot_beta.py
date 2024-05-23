@@ -82,11 +82,8 @@ dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 YDL_OPTS = {
     'format': 'bestaudio/best',
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '320',
-    }],
+    'audioformat': 'mp3',
+    'extractaudio': True,
     'quiet': True,
     'skip_download': True,
     'ignoreerrors': True
@@ -109,7 +106,7 @@ def fetch_info(ydl, id, is_url):
         'id': info['id'],
         'thumbnail_url': info['thumbnail'],
         'url': url,
-        'stream_url': info['formats'][0]['url'],
+        'stream_url': info['formats'][2]['url'],
         'type': vtype
     }
 
@@ -1293,9 +1290,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             vote_skip_dict[gid] = -1
             if not ctx.voice_client.is_paused():
                 try:
-                    ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url']), after=lambda e: on_song_end(ctx, e))
+                    ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'], before_options="-ss 0 -re"), after=lambda e: on_song_end(ctx, e))
                     ctx.voice_client.is_playing()
-                except:
+                except Exception as e:
+                    print(e)
                     pass
         else:
             await ctx.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1430,7 +1428,7 @@ async def forward(ctx, time):
         ctx.voice_client.stop()
 
         ctx.voice_client.play(
-            discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]}"),
+                discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]} -re"),
             after=lambda e: on_song_end(ctx, e))
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
@@ -1481,7 +1479,7 @@ async def seek(ctx, time):
         ctx.voice_client.stop()
 
         ctx.voice_client.play(
-            discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]}"),
+            discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]} -re"),
             after=lambda e: on_song_end(ctx, e))
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
