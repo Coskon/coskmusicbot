@@ -23,6 +23,7 @@ Changed from downloading the videos to streaming them, allowing for faster respo
 - New beta feature (see above).
 - Changed the code significantly to have better performance; before, it would save the URLs of each song and request the data each time it was needed, now it saves the "YouTube" object itself along with some other info. Now, appart from the downloading of the songs that is still pretty slow, it can access the queue much faster, change between songs faster (if the song was already downloaded), and in general the bot feels a little bit more responsive.
 - Parameter to enable or disable references on each bot message, in case it bothers you.
+- There should be more support for different youtube links, even weird ones.
 - Minor bug fixes.
 
 ## Installation Guide
@@ -55,6 +56,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Important
 - The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
 - Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")
+- If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`. 
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
 
@@ -128,3 +130,6 @@ A list of things that might get added:
 - [ ] Easier command customization.
 - [ ] Linux/MAC support.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc)
+- [ ] Channel name in the info.
+- [ ] Better queue visualization, better info visualization, etc.
+- [ ] Interactive buttons to play, resume, etc.
