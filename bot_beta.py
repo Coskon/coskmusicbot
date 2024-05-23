@@ -1,15 +1,12 @@
 import discord
 import asyncio
 import utilidades
-import librosa
 import spotipy
-import subprocess
-import soundfile as sf
-import numpy as np
-import os, random, re, json, traceback, time, ast, configparser
+import os, random, re, json, traceback, time, configparser
 from discord.ext import commands, tasks
-from pytube import YouTube, exceptions, Search, Playlist
-from concurrent.futures import ThreadPoolExecutor
+from pytube import Playlist, Search
+from youtube_dl import YoutubeDL
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from spotipy.oauth2 import SpotifyClientCredentials
 from extras import *
 
@@ -83,9 +80,52 @@ user_cooldowns = {}
 loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
-
+YDL_OPTS = {
+    'format': 'bestaudio/best',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '320',
+    }],
+    'quiet': True,
+    'skip_download': True,
+    'ignoreerrors': True
+}
 
 ## NORMAL FUNCTIONS ##
+def fetch_info(ydl, id, is_url):
+    url = rf"https://www.youtube.com/watch?v={id}" if not is_url else id
+    info = ydl.extract_info(url, download=False)
+    if 'entries' in info:
+        vtype = 'playlist'
+    elif 'is_live' in info and info['is_live']:
+        vtype = 'live'
+    else:
+        vtype = 'video'
+    return {
+        'title': info['title'],
+        'channel': info['uploader'],
+        'length': info['duration'],
+        'id': info['id'],
+        'thumbnail_url': info['thumbnail'],
+        'url': url,
+        'stream_url': info['formats'][0]['url'],
+        'type': vtype
+    }
+
+def info_from_yt_ids(video_ids, is_url=False):
+    video_list = []
+    with YoutubeDL(YDL_OPTS) as ydl:
+        with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+            futures = {executor.submit(fetch_info, ydl, id, is_url): id for id in video_ids}
+            for future in as_completed(futures):
+                try:
+                    video_list.append(future.result())
+                except Exception as e:
+                    print(f"Error fetching info for video {futures[future]}: {e}")
+    return video_list
+
+
 def get_sp_id(url):
     # Extract the track ID from the Spotify URL
     pattern = r'\/track\/([a-zA-Z0-9]+)'
@@ -163,6 +203,16 @@ def on_song_end(ctx, error):
         bot.loop.create_task(play_next(ctx))
 
 
+def search_youtube(query, max_results=18):
+    results = []
+    tmp_l = Search(query).results[:max_results]
+    for result in tmp_l:
+        results.append(result.video_id)
+    return results
+    #html = urlopen(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}")
+    #return re.findall(r"watch\?v=(\S{11})", html.read().decode())[:max_results]
+
+
 def change_active(ctx, mode="a"):
     global active_servers
     active_servers[str(ctx.guild.id)] = 1 if mode == "a" else 0
@@ -204,6 +254,8 @@ async def choice(ctx, embed, reactions):
 async def play_next(ctx):
     global dict_current_song, loop_mode, dict_queue
     gid = str(ctx.guild.id)
+    dict_queue.setdefault(gid, list())
+    dict_current_song.setdefault(gid, 0)
     queue = dict_queue[gid]
     current_song = dict_current_song[gid]
     if current_song < 0: dict_current_song[gid] = 0
@@ -327,7 +379,7 @@ async def on_command_error(ctx, error):
 
 ## BOT TASKS ##
 @tasks.loop(seconds=1)
-async def update_current_time(ctx):
+async def update_current_time():
     global dict_current_time
     for guild in dict_current_time:
         dict_current_time[guild] += 1
@@ -752,7 +804,6 @@ async def leave(ctx, ignore=False):
             pass
         disable_play = False
         dict_current_song[gid], dict_current_time[gid] = 0, 0
-        [os.remove(os.path.join(DOWNLOAD_PATH, file)) for file in os.listdir(DOWNLOAD_PATH)]
     except:
         traceback.print_exc()
 
@@ -768,18 +819,18 @@ async def info(ctx):
             return
         if ctx.voice_client and ctx.voice_client.is_playing():
             gid = str(ctx.guild.id)
+            dict_queue.setdefault(gid, list())
+            dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
-            yt = current_song[0]
-            titulo, duracion, actual = current_song[1], convert_seconds(int(yt.length)), convert_seconds(
-                dict_current_time[gid])
+            vid = queue[current_song]
+            titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
             artista = utilidades.get_spotify_artist(titulo, is_song=True)
             if not artista: artista = "???"
             embed = discord.Embed(
                 title=song_info_title,
-                description=song_info_desc.replace("%title", titulo).replace("%artist", artista).replace("%duration",
-                                                                                                         str(duracion)).replace(
-                    "%bar", utilidades.get_bar(int(yt.length), dict_current_time[gid])),
+                description=song_info_desc.replace("%title", titulo).replace("%artist", artista)
+                    .replace("%duration", str(duracion)).replace("%bar", utilidades.get_bar(int(vid['length']), dict_current_time[gid])),
                 color=EMBED_COLOR
             )
             await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -891,16 +942,15 @@ async def search(ctx, tipo, *, query=""):
         if tipo.lower() in ['youtube', 'yt', 'yotube'] or (tipo not in ['spotify', 'sp', 'spotipy', 'spoti', 'spoty']
                                                            and tipo not in ['youtube', 'yt', 'yotube']):
             try:
-                resultados = Search(query).results
+                results = search_youtube(query, max_results=options['search_limit'])
             except:
                 traceback.print_exc()
                 await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                 return
-            yt_list = [YouTube(f"https://www.youtube.com/watch?v={result.video_id}", use_oauth=USE_LOGIN, allow_oauth_cache=True) for result in resultados]
-            yt_list = yt_list[:options['search_limit']]
-            embed.set_thumbnail(url=yt_list[0].thumbnail_url)
+            yt_list = info_from_yt_ids(results)
+            embed.set_thumbnail(url=yt_list[0]['thumbnail_url'])
             for vid in yt_list:
-                texto = f"➤ [{vid.title}]({vid.watch_url})\n"
+                texto = f"➤ [{vid['title']}]({vid['url']})\n"
                 embed.add_field(name="", value=texto, inline=False)
             embed.title = youtube_search_title
             await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -996,20 +1046,23 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
         all_chosen = False
         if not members_left.is_running(): members_left.start()
         if isinstance(url, dict):
-            video_select = url.copy()
+            if 'obj' in url:
+                video_select = {
+                    'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None, 'url': url['url'],
+                    'type': None, 'stream_url': None
+                }
+            else:
+                video_select = url.copy()
         else:
             separate_commands = str(url).split('---')
             url = separate_commands[0]
-            video_select = {
-                "video": None, "title": None, "thumbnail_url": None,
-                "length": None, "url": url
-            }
             if len(separate_commands) > 1:
                 command = separate_commands[1]
                 if command in ['1', 'true', 'si', 'y', 'yes', 'gif']: gif = True
             if not is_url(url):
                 search_message = await ctx.send(searching_text)
-                results = Search(url).results[:MAX_SEARCH_SELECT]
+                #results = Search(url).results[:MAX_SEARCH_SELECT]
+                results = search_youtube(url, max_results=MAX_SEARCH_SELECT)
                 if not results:
                     await search_message.delete()
                     await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1024,13 +1077,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         color=EMBED_COLOR
                     )
 
-                    yt_list = []
-                    for result in results:
-                        yt_list.append({
-                            "video": result, "title": result.title, "thumbnail_url": result.thumbnail_url,
-                            "length": result.length, "url": result.watch_url
-                        })
-
                     emojis_reactions = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '❌']
                     emoji_to_number = {
                         '1️⃣': 1,
@@ -1041,22 +1087,23 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         '❌': None
                     }
 
+                    yt_list = info_from_yt_ids(results)
+
                     choice_embed.set_thumbnail(url=yt_list[0]['thumbnail_url'])
                     for i in range(5):
                         texto = f"{emojis_reactions[i]} [{yt_list[i]['title']}]({yt_list[i]['url']}) `{convert_seconds(yt_list[i]['length'])}`\n"
                         choice_embed.add_field(name="", value=texto, inline=False)
 
-
                     disable_play = True
                     if USE_BUTTONS:
                         button_choice[gid] = -1
                         menu = SongChooseMenu(gid)
-                        message = await ctx.send(embed=choice_embed, view=menu)
+                        message = await ctx.send(embed=choice_embed, view=menu, reference=ctx.message if REFERENCE_MESSAGES else None)
                         try:
                             def check(interaction: discord.interactions.Interaction):
                                 return interaction.user.id == ctx.author.id
                             temp_TIMELIMIT = TIMELIMIT
-                            for _ in range(30):
+                            for _ in range(60):
                                 start_time = time.time()
                                 intrc = await bot.wait_for('interaction', timeout=temp_TIMELIMIT, check=check)
                                 end_time = time.time() - start_time
@@ -1093,7 +1140,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         if button_choice[gid] == 5: button_choice[gid] = random.randint(0, len(results[(5 * (current_page - 1)):(5 * current_page)]))
                         if button_choice[gid] == 9:
                             links = []
-                            for vid in yt_list:
+                            for vid in yt_list[(5 * (current_page - 1)):(5 * current_page)]:
                                 links.append(vid)
                             all_chosen = True
                             await ctx.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1118,32 +1165,30 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         else:
                             return
                 else:
-                    watch_url = f"https://www.youtube.com/watch?v={results[0].video_id}"
-                    yt_obj = YouTube(watch_url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
-                    video_select = {
-                        "video": yt_obj, "title": yt_obj.title, "thumbnail_url": yt_obj.thumbnail_url,
-                        "length": yt_obj.length, "url": watch_url
-                    }
+                    video_select = info_from_yt_ids([results[0]])[0]
+            else:
+                video_select = {
+                    'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None, 'url': url,
+                    'type': None, 'stream_url': None
+                }
 
         if not all_chosen:
             vtype, vid_id = check_link_type(video_select['url'])
+            failed_check = False
             if vtype == 'unknown':
                 await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                 return
             elif vtype == 'playlist':
-                def get_video_details(yt):
+                def get_video(yt):
                     return {
-                        "video": yt,
-                        "title": yt.title,
-                        "thumbnail_url": yt.thumbnail_url,
-                        "length": yt.length,
-                        "url": yt.watch_url
+                        "obj": yt,
+                        "url": yt.watch_url,
+                        "title": yt.title
                     }
-                failed_check = False
                 try:
                     playlist = Playlist(video_select['url'])
                     videos = playlist.videos
-                    videos[0] # shouldnt be necessary, but it is ???
+                    videos[0]  # shouldnt be necessary, but it is ???
                 except:
                     # check if link type is not compatible
                     try:
@@ -1155,8 +1200,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         vtype = 'video'
                         failed_check = True
                 if not failed_check:
-                    with ThreadPoolExecutor() as executor:
-                        links = list(executor.map(get_video_details, [video for video in videos]))
+                    with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+                        links = list(executor.map(get_video, [video for video in videos]))
                     if len(links) > PLAYLIST_MAX_LIMIT:
                         await ctx.send(playlist_max_reached.replace("%pl_length", str(len(links))).replace("%over", str(abs(
                             PLAYLIST_MAX_LIMIT - len(links)))).replace("%discarded", str(abs(PLAYLIST_MAX_LIMIT - len(links)))))
@@ -1172,32 +1217,26 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     if len(links) > PLAYLIST_TIME_LIMIT:
                         durt = 0
                     else:
-                        durt, sec = 1, convert_seconds(get_playlist_total_duration_seconds(playlist))
+                        durt, sec = 1, convert_seconds(get_playlist_total_duration_seconds(videos))
                     embed_playlist.add_field(
                         name=playlist_link,
                         value=playlist_link_desc.replace("%url", url).replace("%title", playlist.title) + durt * playlist_link_desc_time.replace("%duration", str(sec))
                     )
+                    links[0] = info_from_yt_ids([links[0]['url']], is_url=True)[0]
+                    print(links)
             elif vtype in {'sp_track', 'sp_album'}:
                 pass
                 #print(vtype[1])
                 #track_title = vtype[1]['name']
                 #track_artists = vtype[1]['artists']
-            if vtype == 'video':
-                if not isinstance(url, dict):
-                    try:
-                        yt_obj = YouTube(video_select['url'], use_oauth=USE_LOGIN, allow_oauth_cache=True)
-                        yt_obj.title
-                    except:
-                        try:
-                            yt_obj = YouTube(f"https://www.youtube.com/watch?v={vid_id}", use_oauth=USE_LOGIN, allow_oauth_cache=True)
-                            yt_obj.title
-                        except:
-                            await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-                            return
-                    links = [{
-                        "video": yt_obj, "title": yt_obj.title, "thumbnail_url": yt_obj.thumbnail_url,
-                        "length": yt_obj.length, "url": video_select['url']
-                    }]
+            if vtype in {'video', 'live'}:
+                if not isinstance(url, dict) or 'obj' in url:
+                    get_url = video_select['url'] if not failed_check else url
+                    links = info_from_yt_ids([get_url], is_url=True)
+                    if isinstance(url, dict) and 'obj' in url:
+                        dict_queue.setdefault(gid, list())
+                        dict_current_song.setdefault(gid, 0)
+                        dict_queue[gid][dict_current_song[gid]] = links[0]
                 else:
                     links = [video_select]
         else:
@@ -1209,6 +1248,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             await skip(ctx)
             return
         titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
+        if vid['type'] == 'live': duracion = 'LIVE'
         embed = discord.Embed(
             title=song_chosen_title,
             description=song_chosen_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace(
@@ -1222,8 +1262,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             color=EMBED_COLOR
         )
         embed.add_field(name=playing_title,
-                        value=playing_desc.replace("%url", vid['url']).replace("%title", titulo).replace("%duration",
-                                                                                                       str(duracion)),
+                        value=playing_desc.replace("%url", vid['url']).replace("%title", titulo).replace("%duration", str(duracion)),
                         inline=False)
         img = None
         if gif and TENOR_API_KEY: img = search_gif(titulo)
@@ -1235,34 +1274,11 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
         else:
             embed.set_thumbnail(url=img)
             embed2.set_thumbnail(url=img)
-        try: audio_streams = vid['video'].streams.filter(only_audio=True)
-        except:
-            traceback.print_exc()
-            await ctx.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
-        sorted_streams = sorted(audio_streams, key=lambda x: int(x.abr[:-4]))
-        try:
-            length = vid['length']
-            if 0 <= length < 300:
-                audio_stream = sorted_streams[-1]
-            elif 300 <= length < 2000:
-                audio_stream = sorted_streams[-2]
-            elif 2000 <= length < 3500:
-                audio_stream = sorted_streams[1]
-            else:
-                audio_stream = sorted_streams[0]
-        except:
-            audio_stream = sorted_streams[0]
         if append:
             dict_queue[gid] = dict_queue.setdefault(gid, list())
             dict_current_song[gid] = dict_current_song.setdefault(gid, 0)
             for video in links: dict_queue[gid].append(video)
-        if audio_stream:
-            audio_stream.download(output_path=DOWNLOAD_PATH)
-            og_path = DOWNLOAD_PATH + audio_stream.default_filename
-            audio_path = DOWNLOAD_PATH + titulo + ".mp4"
-            if not os.path.exists(audio_path):
-                os.rename(og_path, audio_path)
+        if vid['stream_url']:
             if vtype == 'playlist':
                 await ctx.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES else None)
             elif ctx.voice_client.is_playing():
@@ -1270,24 +1286,22 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             else:
                 dict_current_time[gid] = 0
                 await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
-            if not update_current_time.is_running(): update_current_time.start(ctx)
+            if not update_current_time.is_running(): update_current_time.start()
 
             # LVL HANDLE
             await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
             vote_skip_dict[gid] = -1
             if not ctx.voice_client.is_paused():
                 try:
-                    ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path), after=lambda e: on_song_end(ctx, e))
+                    ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url']), after=lambda e: on_song_end(ctx, e))
+                    ctx.voice_client.is_playing()
                 except:
                     pass
         else:
             await ctx.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-    except exceptions.VideoUnavailable:
+    except:
         traceback.print_exc()
         await ctx.send(random.choice(restricted_video_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-    except Exception as e:
-        traceback.print_exc()
-        raise e
 
 
 @bot.command(name='level', aliases=['lvl'])
@@ -1355,6 +1369,8 @@ async def remove(ctx, index):
             await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         try:
@@ -1388,9 +1404,14 @@ async def forward(ctx, time):
             await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         vid = queue[current_song]
+        if vid['type'] == 'live':
+            await ctx.send(cannot_change_time_live.replace("%command", "forward/backward"), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         if str(time).replace('-', '').replace('+', '').isnumeric():
             time = int(time)
         else:
@@ -1408,13 +1429,8 @@ async def forward(ctx, time):
         if ctx.voice_client.is_paused(): ctx.voice_client.resume()
         ctx.voice_client.stop()
 
-        audio_path = find_file(DOWNLOAD_PATH, format_title(vid['title']))
-        if not audio_path:
-            print(couldnt_find_audiofile)
-            return
-
         ctx.voice_client.play(
-            discord.FFmpegPCMAudio(DOWNLOAD_PATH + audio_path, before_options=f"-ss {dict_current_time[gid]}"),
+            discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]}"),
             after=lambda e: on_song_end(ctx, e))
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
@@ -1443,15 +1459,14 @@ async def seek(ctx, time):
             await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         vid = queue[current_song]
-        audio_path = find_file(DOWNLOAD_PATH, format_title(vid['title']))
-        if not audio_path:
-            print(couldnt_find_audiofile)
-            await ctx.send(generic_error)
+        if vid['type'] == 'live':
+            await ctx.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-
         if str(time).isnumeric():
             time = int(time)
             if time < 0: time = 0
@@ -1466,7 +1481,7 @@ async def seek(ctx, time):
         ctx.voice_client.stop()
 
         ctx.voice_client.play(
-            discord.FFmpegPCMAudio(DOWNLOAD_PATH + audio_path, before_options=f"-ss {dict_current_time[gid]}"),
+            discord.FFmpegPCMAudio(vid['stream_url'], before_options=f"-ss {dict_current_time[gid]}"),
             after=lambda e: on_song_end(ctx, e))
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
@@ -1512,6 +1527,7 @@ async def shuffle(ctx):
         global dict_current_song
         gid = str(ctx.guild.id)
         dict_current_song[gid] = -1
+        dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
         random.shuffle(queue)
         global dict_current_time
@@ -1530,6 +1546,8 @@ async def cola(ctx):
             return
         global dict_queue, dict_current_song
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if not queue:
@@ -1577,7 +1595,7 @@ async def resume(ctx):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         ctx.voice_client.resume()
-        if not update_current_time.is_running(): update_current_time.start(ctx)
+        if not update_current_time.is_running(): update_current_time.start()
     except:
         traceback.print_exc()
 
@@ -1627,6 +1645,7 @@ async def goto(ctx, num):
         global dict_queue, dict_current_song
         num = int(num)
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
         if 0 < num <= len(queue):
             dict_current_song[gid] = num - 2
@@ -1711,6 +1730,8 @@ async def lyrics(ctx, *, query=None):
             return
         if not query:
             gid = str(ctx.guild.id)
+            dict_queue.setdefault(gid, list())
+            dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             titulo = queue[current_song]['title']
@@ -1752,9 +1773,11 @@ async def songs(ctx, number=None, *, artista=""):
         if number is None and artista == "":
             if ctx.voice_client and ctx.voice_client.is_playing():
                 gid = str(ctx.guild.id)
+                dict_queue.setdefault(gid, list())
+                dict_current_song.setdefault(gid, 0)
                 queue = dict_queue[gid]
                 current_song = dict_current_song[gid]
-                artista = queue[current_song][title]
+                artista = queue[current_song]['title']
                 number = 10
                 m = True
             else:
@@ -1792,11 +1815,13 @@ async def chords(ctx, *, query=""):
         if not check_perms(ctx, "use_chords"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        if not GENIUS_ACCESS_TOKEN:
+        if not SPOTIFY_ID or not SPOTIFY_SECRET:
             await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         if not query and ctx.voice_client and ctx.voice_client.is_playing():
             gid = str(ctx.guild.id)
+            dict_queue.setdefault(gid, list())
+            dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             query = queue[current_song]['title']
@@ -1824,35 +1849,29 @@ async def chords(ctx, *, query=""):
 
 
 @bot.command(name='pitch', aliases=['tone'])
-async def pitch(ctx, semitones):
+async def pitch(ctx, semitones, change_speed=""):
     try:
         if not check_perms(ctx, "use_pitch"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        global dict_current_time
+        global dict_queue, dict_current_song, dict_current_time
         ctx.voice_client.pause()
-        if update_current_time.is_running(): update_current_time.stop()
-        dict_current_time[gid] = 0
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
-
-        audio_path = DOWNLOAD_PATH + find_file(DOWNLOAD_PATH, format_title(queue[current_song]['title']))
-        y, sr = librosa.load(audio_path, mono=False)
-        temp_new_y = librosa.effects.pitch_shift(y, sr=sr, n_steps=semitones)
-        new_y = np.stack([temp_new_y[0], temp_new_y[1]], axis=-1)
-        sf.write(audio_path[:-4] + ".wav", new_y, sr)
-        audio_path, input_file = rf"{audio_path}", rf"{audio_path[:-4] + '.wav'}"
-        command = f"ffmpeg -y -i {input_file} {audio_path}"
-        subprocess.run(command.split())
-        ctx.voice_client.play(discord.FFmpegPCMAudio(audio_path),
+        pitch_factor = min(max(0.01, 2**((float(semitones)+1)/12)), 2)
+        opts = f'-filter:a "asetrate=44100*{pitch_factor},aresample=44100,atempo=1/{pitch_factor}"' if not change_speed \
+            else f'-filter:a "asetrate=44100*{pitch_factor},aresample=44100"'
+        ctx.voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], options=opts),
                               after=lambda e: print(f"{generic_error}: %s" % e) if e else None)
         embed = discord.Embed(
             title=pitch_title,
-            description=pitch_desc.replace("%sign", "+" if float(semitones) >= 0 else "-").replace("%tone", str(abs(
-                float(semitones)))),
+            description=pitch_desc.replace("%sign", "+" if float(semitones) >= 0 else "-").replace("%tone", str(abs(float(semitones)))),
             color=EMBED_COLOR
         )
+        dict_current_time[gid] = 0
         await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
     except:
         traceback.print_exc()

@@ -1,5 +1,5 @@
 import spotipy, lyricsgenius
-import asyncio, json, requests
+import asyncio, json, requests, os
 from fuzzywuzzy import fuzz
 from bs4 import BeautifulSoup
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -25,7 +25,7 @@ else:
         SPOTIFY_ID = keys[4].split("=")[1]
         SPOTIFY_SECRET = keys[5].split("=")[1]
 
-client_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_ID, client_secret=SPOTIFY_SECRET) if SPOTIFY_ID and SPOTIFY_SECRET else None
+SPOTIFY_CREDENTIAL_MANAGER = SpotifyClientCredentials(client_id=SPOTIFY_ID, client_secret=SPOTIFY_SECRET) if SPOTIFY_ID and SPOTIFY_SECRET else None
 
 available_genres = [
     'acoustic', 'afrobeat', 'alt-rock', 'alternative', 'ambient', 'anime', 'black-metal', 'bluegrass', 'blues', 'bossanova',
@@ -88,7 +88,7 @@ def get_bar(total, progress, length=20):
 
 
 def get_spotify_artist(query, is_song=False):
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
     if is_song:
         # If the input is a song, search for the song and extract the artist's name
         results = sp.search(q=query, type='track')
@@ -103,7 +103,7 @@ def get_spotify_artist(query, is_song=False):
 
 
 def get_spotify_song(song_name):
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
 
     # Search for the song
     results = sp.search(q=song_name, type='track')
@@ -153,7 +153,7 @@ def get_lyrics(song_title, tupla_a_s=(None, None)):
 
 def get_top_songs(artist_name, n):
     # Authenticate with the Spotify API
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
 
     # Search for the artist
     results = sp.search(q=artist_name, type='artist')
@@ -178,7 +178,7 @@ def get_top_songs(artist_name, n):
 
 
 def get_artist_image_url(artist_name):
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
 
     # Search for the artist
     results = sp.search(q=artist_name, type='artist')
@@ -199,7 +199,7 @@ def get_artist_image_url(artist_name):
 
 
 def spotify_search(query, lim=5):
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
     results = sp.search(q=query, limit=lim, type='track')
     top_results = []
     for track in results['tracks']['items']:
@@ -220,7 +220,7 @@ def genre_spotify_search(user_query, lim=15):
     mr1, mr2 = fuzz.ratio(user_query, 'available'), fuzz.ratio(user_query, 'disponible')
     if mr1 > 85 or mr2 > 85: return available_genres, True
     chosen_genre = max(available_genres, key=lambda genre: fuzz.ratio(user_query, genre.lower()))
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
     results = sp.search(q=f"genre:{chosen_genre}", limit=lim, type='track')
     top_results = []
     for track in results['tracks']['items']:

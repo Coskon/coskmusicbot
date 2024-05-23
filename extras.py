@@ -1,10 +1,11 @@
 import os, re, json, ast
 import requests
 from urllib.parse import urlsplit
+from urllib.request import urlopen
 
 def write_param():
     with open('PARAMETERS.txt', 'w') as f:
-        f.write("BOT_NAME = Coskquin  # name of your bot\n\nMAX_VIDEO_LENGTH = 18000  # in seconds\n\nPLAYLIST_MAX_LIMIT = 200  # max videos on playlist\n\nPLAYLIST_TIME_LIMIT = 100  # max videos to see their total duration\n\nTIMELIMIT = 30  # (in seconds) timelimit for the popup of the search choice embed\n\nREQUEST_LIMIT = 1.75  # (in seconds) time should pass between command calls from each user\n\nMEMBERS_LEFT_TIMEOUT = 20  # (in seconds) time between each check for members left\n\nEMBED_COLOR = 0xff0000  # color for the side of the embed\n\nDEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default\n\nDEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default\n\nLVL_PLAY_ADD = 1  # how much to add per play command called\n\nLVL_NEXT_XP = 25  # how much required xp added per next level\n\nLVL_BASE_XP = 25  # base xp required for the first level\n\nNUM_THREADS_HIGH = 4  # number of threads to use for tasks that need high performance\n\nNUM_THREADS_LOW = 2  # number of threads to use for tasks that don't need as much performance\n\nUSE_LOGIN = True\n\nDOWNLOAD_PATH = downloads/  # download output folder\n\nDEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\nEXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands\n\nAVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip']  # all permissions available\n\nDEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip']  # permissions each user gets by default\n\nADMIN_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip']  # permissions admin users get by default\n\nUSE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\nUSE_GRADIO = True  # use gradio for the user interface\n\nSKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote")
+        f.write("BOT_NAME = Coskquin  # name of your bot\n\nMAX_VIDEO_LENGTH = 18000  # in seconds\n\nPLAYLIST_MAX_LIMIT = 200  # max videos on playlist\n\nPLAYLIST_TIME_LIMIT = 100  # max videos to see their total duration\n\nTIMELIMIT = 30  # (in seconds) timelimit for the popup of the search choice embed\n\nREQUEST_LIMIT = 1.75  # (in seconds) time should pass between command calls from each user\n\nMEMBERS_LEFT_TIMEOUT = 20  # (in seconds) time between each check for members left\n\nEMBED_COLOR = 0xff0000  # color for the side of the embed\n\nDEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default\n\nDEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default\n\nLVL_PLAY_ADD = 1  # how much to add per play command called\n\nLVL_NEXT_XP = 25  # how much required xp added per next level\n\nLVL_BASE_XP = 25  # base xp required for the first level\n\nNUM_THREADS_HIGH = 6  # number of threads to use for tasks that need high performance\n\nNUM_THREADS_LOW = 3  # number of threads to use for tasks that don't need as much performance\n\nUSE_LOGIN = True\n\nDOWNLOAD_PATH = downloads/  # download output folder\n\nDEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\nEXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands\n\nAVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip']  # all permissions available\n\nDEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip']  # permissions each user gets by default\n\nADMIN_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip']  # permissions admin users get by default\n\nUSE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\nUSE_GRADIO = True  # use gradio for the user interface\n\nSKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\nMAX_SEARCH_SELECT = 12  # limit of youtube searching when choosing a song\n\nREFERENCE_MESSAGES = True  # whether for the bot to reference the user or not")
 
 
 def read_param(complete=False):
@@ -21,6 +22,23 @@ def read_param(complete=False):
         try: parameters[str(name)] = ast.literal_eval(value)
         except: parameters[str(name)] = ast.literal_eval(f'"{value}"')
     return parameters
+
+
+def check_link_type(url):
+    yt_vid_match = re.search(r"(?:v=|\/videos\/|embed\/|\.be\/|\/v\/|\/e\/|watch\/|shorts\/|live\/|\/oembed\?url=https:\/\/www\.youtube\.com\/watch\?v=|watch%3Fv%3D|shorts\/|attribution_link\?a=.*&u=\/watch%3Fv%3D|attribution_link\?a=.*&u=https:\/\/www\.youtube\.com\/watch\?v%3D|attribution_link\?a=.*&u=https:\/\/www\.youtube\.com\/embed\/|attribution_link\?a=.*&u=\/embed\/|attribution_link\?a=.*&u=https:\/\/www\.youtube-nocookie\.com\/embed\/|attribution_link\?a=.*&u=\/e\/)([a-zA-Z0-9_-]{11})", url)
+    yt_playlist_match = re.search(r"(?:https?:\/\/(?:www\.|m\.)?youtube\.com\/.*[?&]list=|https?:\/\/youtu\.be\/)([a-zA-Z0-9_-]*)", url)
+    spotify_track_pattern = r"^https?://open\.spotify\.com/track/[\w\d]+$"
+    spotify_album_playlist_pattern = r"^https?://open\.spotify\.com/(album|playlist)/[\w\d]+$"
+    link_type, id = "unknown", None
+    if yt_playlist_match:
+        link_type, id = "playlist", yt_playlist_match.group(1)
+    elif yt_vid_match:
+        link_type, id = "video", yt_vid_match.group(1)
+    elif re.match(spotify_track_pattern, url):
+        return "sp_track", None
+    elif re.match(spotify_album_playlist_pattern, url):
+        return "sp_album", None
+    return link_type, id
 
 
 def convert_seconds(seconds):
@@ -94,3 +112,5 @@ def cut_string(input_string, max_length):
     cut_position = newline_position if newline_position != -1 else max_length
 
     return input_string[:cut_position], input_string[cut_position:]
+
+
