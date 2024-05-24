@@ -106,7 +106,10 @@ def fetch_info(id, is_url):
         else:
             vtype = 'video'
         for formats in info['formats']:
-            if formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
+            if formats['format_id'] in {'233', '234'}: # check first for m3u8 formats
+                stream_url = formats['url']
+                break
+            elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
                 stream_url = formats['url']
                 break
         return {
