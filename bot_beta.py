@@ -1335,8 +1335,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
         vote_skip_dict[gid] = -1
         if ctx.voice_client and not ctx.voice_client.is_paused():
             try:
-                ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, before_options="-ss 0 -re"), after=lambda e: on_song_end(ctx, e))
-                ctx.voice_client.is_playing()
+                if not ctx.voice_client.is_playing():
+                    ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, before_options="-ss 0 -re"), after=lambda e: on_song_end(ctx, e))
+                    ctx.voice_client.is_playing()
             except Exception as e:
                 print(e)
                 pass
