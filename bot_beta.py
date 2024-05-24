@@ -1130,6 +1130,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                                     new_results_embed.add_field(name="", value=texto, inline=False)
                                 await message.edit(embed=new_results_embed)
                         except asyncio.TimeoutError:
+                            print("a")
                             await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                             await message.delete()
                             disable_play = False
@@ -1226,25 +1227,38 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         value=playlist_link_desc.replace("%url", url).replace("%title", playlist.title) + durt * playlist_link_desc_time.replace("%duration", str(sec))
                     )
                     links[0] = info_from_yt_ids([links[0]['url']], is_url=True)[0]
-                    print(links)
             elif vtype == 'sp_track':
                 track = sp.track(vid_id)
                 videos = Search(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
-                links = info_from_yt_ids([videos[0].watch_url], is_url=True)
+                links = info_from_yt_ids([videos[0].video_id])[0]
             elif vtype == 'sp_album':
+                def fetch_video_data(track):
+                    videos = Search(
+                        f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
+                    return {
+                        'obj': videos[0],
+                        'title': videos[0].title,
+                        'url': videos[0].watch_url
+                    }
                 album = sp.album(vid_id)
-                video_urls = []
-                for track in album['tracks']['items']:
-                    videos = Search(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
-                    video_urls.append(videos[0].watch_url)
-                links = info_from_yt_ids(video_urls, is_url=True)
+                tracks = album['tracks']['items']
+                with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+                    links = list(executor.map(fetch_video_data, tracks))
+                links[0] = info_from_yt_ids([links[0]['url']], is_url=True)[0]
             elif vtype == 'sp_playlist':
+                def fetch_video_data(track):
+                    videos = Search(
+                        f"+{track['track']['name']}, {' '.join([artist['name'] for artist in track['track']['artists']])} audio").results
+                    return {
+                        'obj': videos[0],
+                        'title': videos[0].title,
+                        'url': videos[0].watch_url
+                    }
                 playlist = sp.playlist(vid_id)
-                video_urls = []
-                for track in playlist['tracks']['items']:
-                    videos = Search(f"+{track['track']['name']}, {' '.join([artist['name'] for artist in track['track']['artists']])} audio").results
-                    video_urls.append(videos[0].watch_url)
-                links = info_from_yt_ids(video_urls, is_url=True)
+                tracks = playlist['tracks']['items'].q
+                with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+                    links = list(executor.map(fetch_video_data, tracks))
+                links[0] = info_from_yt_ids([links[0]['url']], is_url=True)[0]
             elif vtype == 'raw_audio':
                 links = [url]
             if vtype in {'video', 'live'}:
@@ -1260,7 +1274,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     links = [video_select]
         else:
             vtype = 'video'
-        vid = links[0]
+        vid = links[0].copy()
         if vtype != 'raw_audio':
             if vid['length'] > MAX_VIDEO_LENGTH:
                 await ctx.send(video_max_duration.replace("%video_limit", str(convert_seconds(MAX_VIDEO_LENGTH))),
@@ -1602,8 +1616,8 @@ async def cola(ctx):
         with ThreadPoolExecutor(max_workers=NUM_THREADS_LOW) as executor:
             titulos = list(executor.map(get_video_info, queue))
         for k in range(len(titulos)):
-            titulos[k] = f"`{i}. " + titulos[k] + queue_current if current_song == i - 1 else f"{i}. *" + titulos[
-                k] + "*"
+            titulos[k] = f"`{i}. " + titulos[k] + queue_current if current_song == i - 1 else \
+                f"{i}. *" + titulos[k] + "*"
             i += 1
         titletext = '\n'.join(titulos)
         if len(titletext) > 3000:
