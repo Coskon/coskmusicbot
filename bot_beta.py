@@ -106,11 +106,13 @@ def fetch_info(id, is_url):
         else:
             vtype = 'video'
         for formats in info['formats']:
-            if formats['format_id'] in {'233', '234'}: # check first for m3u8 formats
+            if formats['format_id'] in {'233', '234'}:
                 stream_url = formats['url']
+                print(stream_url, formats['format_id'])
                 break
             elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
                 stream_url = formats['url']
+                print(stream_url, formats['format_id'])
                 break
         return {
             'title': info['title'],
@@ -214,7 +216,10 @@ def search_youtube(query, max_results=18):
     results = []
     tmp_l = Search(query).results[:max_results]
     for result in tmp_l:
-        results.append(result.video_id)
+        results.append({
+            'obj': result, 'title': result.title, 'channel': result.author, 'length': result.length, 'id': result.video_id,
+            'thumbnail_url': result.thumbnail_url, 'url': result.watch_url
+        })
     return results
     #html = urlopen(f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}")
     #return re.findall(r"watch\?v=(\S{11})", html.read().decode())[:max_results]
@@ -832,7 +837,8 @@ async def info(ctx):
             current_song = dict_current_song[gid]
             vid = queue[current_song]
             titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
-            artista = utilidades.get_spotify_artist(titulo, is_song=True)
+            if SPOTIFY_SECRET and SPOTIFY_ID: artista = utilidades.get_spotify_artist(titulo, is_song=True)
+            else: artista = vid['channel'] if vid['channel'] else 'Unknown'
             if not artista or vid['type'] == 'raw_audio': artista = "???"
             embed = discord.Embed(
                 title=song_info_title,
@@ -954,9 +960,8 @@ async def search(ctx, tipo, *, query=""):
                 traceback.print_exc()
                 await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                 return
-            yt_list = info_from_yt_ids(results)
-            embed.set_thumbnail(url=yt_list[0]['thumbnail_url'])
-            for vid in yt_list:
+            embed.set_thumbnail(url=results[0]['thumbnail_url'])
+            for vid in results:
                 texto = f"➤ [{vid['title']}]({vid['url']})\n"
                 embed.add_field(name="", value=texto, inline=False)
             embed.title = youtube_search_title
@@ -1093,11 +1098,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         '❌': None
                     }
 
-                    yt_list = info_from_yt_ids(results)
-
-                    choice_embed.set_thumbnail(url=yt_list[0]['thumbnail_url'])
+                    choice_embed.set_thumbnail(url=results[0]['thumbnail_url'])
                     for i in range(5):
-                        texto = f"{emojis_reactions[i]} [{yt_list[i]['title']}]({yt_list[i]['url']}) `{convert_seconds(yt_list[i]['length'])}`\n"
+                        texto = f"{emojis_reactions[i]} [{results[i]['title']}]({results[i]['url']}) `{convert_seconds(results[i]['length'])}`\n"
                         choice_embed.add_field(name="", value=texto, inline=False)
                     await search_message.delete()
                     disable_play = True
@@ -1126,14 +1129,13 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                                     color=EMBED_COLOR
                                 )
                                 val = 5 * (current_page - 1)
-                                left = len(yt_list[val:val+5])
-                                new_results_embed.set_thumbnail(url=yt_list[val]['thumbnail_url'])
+                                left = len(results[val:val+5])
+                                new_results_embed.set_thumbnail(url=results[val]['thumbnail_url'])
                                 for i in range(val, val+left):
-                                    texto = f"{emojis_reactions[i-val]} [{yt_list[i]['title']}]({yt_list[i]['url']}) `{convert_seconds(yt_list[i]['length'])}`\n"
+                                    texto = f"{emojis_reactions[i-val]} [{results[i]['title']}]({results[i]['url']}) `{convert_seconds(results[i]['length'])}`\n"
                                     new_results_embed.add_field(name="", value=texto, inline=False)
                                 await message.edit(embed=new_results_embed)
                         except asyncio.TimeoutError:
-                            print("a")
                             await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                             await message.delete()
                             disable_play = False
@@ -1144,15 +1146,15 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             await ctx.send(random.choice(cancel_selection_texts))
                             if not members_left.is_running(): members_left.start()
                             return
-                        if button_choice[gid] == 5: button_choice[gid] = random.randint(0, len(results[(5 * (current_page - 1)):(5 * current_page)]))
+                        if button_choice[gid] == 5:
+                            button_choice[gid] = random.randint(0, len(results[(5 * (current_page - 1)):(5 * current_page)]))
                         if button_choice[gid] == 9:
-                            links = []
-                            for vid in yt_list[(5 * (current_page - 1)):(5 * current_page)]:
-                                links.append(vid)
+                            links = results[(5 * (current_page - 1)):(5 * current_page)].copy()
+                            links[0] = info_from_yt_ids([links[0]['id']])[0]
                             all_chosen = True
                             await ctx.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES else None)
                         else:
-                            video_select = yt_list[button_choice[gid]+5*(current_page-1)]
+                            video_select = info_from_yt_ids([results[button_choice[gid]+5*(current_page-1)]['id']])[0]
                             if ctx.voice_client:
                                 await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
                             else:
@@ -1166,7 +1168,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             await ctx.send(random.choice(cancel_selection_texts))
                             if not members_left.is_running(): members_left.start()
                             return
-                        video_select = yt_list[emoji_to_number.get(emoji_choice, None) - 1]
+                        video_select = info_from_yt_ids([results[emoji_to_number.get(emoji_choice, None) - 1]['id']])[0]
                         if ctx.voice_client:
                             await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
                         else:
@@ -1190,7 +1192,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     return {
                         "obj": yt,
                         "url": yt.watch_url,
-                        "title": yt.title
+                        "title": yt.title,
+                        "channel": yt.channel
                     }
                 try:
                     playlist = Playlist(video_select['url'])
@@ -1241,7 +1244,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     return {
                         'obj': videos[0],
                         'title': videos[0].title,
-                        'url': videos[0].watch_url
+                        'url': videos[0].watch_url,
+                        'channel': videos[0].channel
                     }
                 album = sp.album(vid_id)
                 tracks = album['tracks']['items']
@@ -1255,7 +1259,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     return {
                         'obj': videos[0],
                         'title': videos[0].title,
-                        'url': videos[0].watch_url
+                        'url': videos[0].watch_url,
+                        'channel': videos[0].channel
                     }
                 playlist = sp.playlist(vid_id)
                 tracks = playlist['tracks']['items'].q
