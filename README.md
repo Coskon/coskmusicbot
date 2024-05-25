@@ -1,10 +1,21 @@
 # Coskquin: Cosk Music Bot
 A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so there are variable names in spanish, it's not commented (might add later) and in general it's better to add things that don't rely on the stuff that is already there (for example, you may add a command that retrieves information from a webpage, but don't try adding spotify support).  
+
+---
+
 ### NOW IN BETA (SOON TO RELEASE 1.0.0)
+#### Important feature
+Added support for a lot of different pages (for info on the possible pages with support, go [here](https://github.com/yt-dlp/yt-dlp/tree/master/yt_dlp/extractor), each .py file is a different website extractor). If you use a supposedly compatible url but it doesn't work, try running `format_extractor.py` with your URL and send me the output/open an issue. I'll add as much formats as possible.
+
+---
 Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).  
+
 Spotify support (convert from spotify to youtube). Most spotify links + codes should work of tracks, albums and playlists. Kinda slow (~10-15 seconds for a 100 track playlist), since it has to actually search, going any faster would require another library. 
+
 Added support to play directly raw audio urls (such as the ones obtained from the yt downloader).  
+
 Switched back to pytube from yt-dlp, though kept it for age restricted videos and livestreams. Everything now is much faster, and you don't have to login with pytube, or change its code or anything like that. However, there are still sometimes where the auidio cuts (on normal videos, on restricted videos and livestreams it shouldn't happen because those are obtained with yt-dlp which provides a better url).
+
 ## Features
 - User permissions for each command (by default, admins get all permissions and everyone else have a default set of permissions which you can change in the code).
 - Can be used in multiple servers at the same time, with each one having its own.
