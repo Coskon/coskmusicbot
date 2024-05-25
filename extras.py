@@ -87,12 +87,12 @@ def is_url(input_string):
         return False
 
 
-def search_gif(query):
+def search_gif(query, api_key):
     query = re.sub(r'[^a-zA-Z0-9 ]', '', query)
     query = str(query).replace(' ', '+').replace('shorts', '')
 
     try:
-        r = requests.get(f"https://tenor.googleapis.com/v2/search?q={query}&key={TENOR_API_KEY}&limit=1")
+        r = requests.get(f"https://tenor.googleapis.com/v2/search?q={query}&key={api_key}&limit=1")
         if r.status_code == 200:
             if not json.loads(r.content)['results']: return None
             return json.loads(r.content)['results'][0]['media_formats']['mediumgif']['url']
