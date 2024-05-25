@@ -1,10 +1,10 @@
 # Coskquin: Cosk Music Bot
 A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so there are variable names in spanish, it's not commented (might add later) and in general it's better to add things that don't rely on the stuff that is already there (for example, you may add a command that retrieves information from a webpage, but don't try adding spotify support).  
-### NOW IN BETA 
+### NOW IN BETA (SOON TO RELEASE 1.0.0)
 Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).  
-Spotify support (convert from spotify to youtube). Right now is painfully slow, i'll try to take a similar approach to how i handle youtube playlists in the future, to at least initialize faster. Most spotify links + codes should work of tracks, albums and playlists, though for now it's too slow to be actually useful.  
+Spotify support (convert from spotify to youtube). Most spotify links + codes should work of tracks, albums and playlists. Kinda slow (~10-15 seconds for a 100 track playlist), since it has to actually search, going any faster would require another library. 
 Added support to play directly raw audio urls (such as the ones obtained from the yt downloader).  
-Switched to yt-dlp, it's not really faster but it seems more stable, but audios sometimes still cut after some time, though it seems to be only when searching. Because of this change, changing the youtube_dl code to fix a bug isn't necessary anymore, and it can access age restricted videos without problem (however, you can put a 'cookies.txt' file in the main folder in case you have some problems with it).
+Switched back to pytube from yt-dlp, though kept it for age restricted videos and livestreams. Everything now is much faster, and you don't have to login with pytube, or change its code or anything like that. However, there are still sometimes where the auidio cuts (on normal videos, on restricted videos and livestreams it shouldn't happen because those are obtained with yt-dlp which provides a better url).
 ## Features
 - User permissions for each command (by default, admins get all permissions and everyone else have a default set of permissions which you can change in the code).
 - Can be used in multiple servers at the same time, with each one having its own.
@@ -23,9 +23,10 @@ Switched to yt-dlp, it's not really faster but it seems more stable, but audios 
 - And more...
 
 ## Recently added
+- Two new commands: `nightcore` and `daycore`, they speed up/slow down the song to a "proper nightcore/daycore level", for better pitch and speed control use `pitch`.
+- Changed `pitch`, now takes as a second optional parameter "speed", 1.0 by default (meaning it will not change no matter the pitch), to speed up the song alongside the pitch calculate the speed as `1+1/semitones`.
+- Now `seek`, `forwards` and `backwards` keep the pitch and speed that was set.
 - Changed the amount of buttons to 10 (the reactions didnt change). Now, appart from choosing from 1 of the 5 songs available, you can change pages to see more results, choose all songs in the chosen page or select a random one in that page. The timeout limit works normally, with a maximum of 60 button interactions (safe limit). The search limit for these videos can be changed in the parameters, by default is double the number of threads to use, though that is only significant in the beta, and apparently pytube only searches up to 18 results anyways. This will probably be changed for the option 'search_limit' to make it server-independant.
-- New beta feature (see above).
-- Changed the code significantly to have better performance; before, it would save the URLs of each song and request the data each time it was needed, now it saves the "YouTube" object itself along with some other info. Now, appart from the downloading of the songs that is still pretty slow, it can access the queue much faster, change between songs faster (if the song was already downloaded), and in general the bot feels a little bit more responsive.
 - Parameter to enable or disable references on each bot message, in case it bothers you.
 - There should be more support for different youtube links, even weird ones.
 - Support for shortened links, any type. Slightly slower so i recommend using normal urls.
@@ -68,8 +69,8 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Beta disclaimer
 As the name indicates, it's in beta. It will not work as expected, at least not 100% of the time, have that in mind.  
 Current beta feature: *Streaming audio instead of downloading it*.  
-Why is in beta: *The bot cuts/disconnects/skips the audio, apparently only when searching for a song. Until i find a definite solution this will be in beta.*  
-Possible causes: *No idea.*
+Why is in beta: *Bad stability, bot cutting audio. This will be fixed before 1.0.0 release, alongside new embeds/messages to make it look better.*  
+Possible causes: *Caused by the song urls and pytube client.*
 Possible solutions: *Maybe make sure the bot doesnt play anything if there's something already on, not even to check for errors.*
 
 ## Limitations
