@@ -94,6 +94,8 @@ YDL_OPTS = {
     'extract_flat': True,
     'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
 }
+EXTRA_FORMATS = {'Audio_Only', '160p', '360p', '480p', '720p60', '1080p60', '0', 'hls_mp3_128', 'http_mp3_128',
+                 'hls_opus_64', 'hls-250p', 'hls-360p', 'hls-480p', 'mp4-low', 'mp4-high'}
 
 ## NORMAL FUNCTIONS ##
 def get_sp_id(url):
@@ -192,7 +194,11 @@ def fetch_info(result):
                             stream_url = formats['url']
                             break
                         else:
-                            return None
+                            try:
+                                stream_url = formats['url']
+                                break
+                            except:
+                                return None
             except:
                 return None
     return {
@@ -210,23 +216,26 @@ def search_youtube(query, max_results=18):
     return list(filter(None, results))
 
 
-def info_from_url(query, is_url=True):
-    result = YouTube(query if is_url else f"https://www.youtube.com/watch?v={query}", use_oauth=USE_LOGIN, allow_oauth_cache=True)
+def info_from_url(query, is_url=True, not_youtube=False):
+    url = query if is_url else f"https://www.youtube.com/watch?v={query}"
+    try:
+        result = YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
+        streaming_data = result.vid_info['streamingData']
+    except: not_youtube = True
     vtype = 'video'
     try:
-        streaming_data = result.vid_info['streamingData']
+
         stream_url = get_stream_url(streaming_data['formats'], itags=ITAGS_LIST)  # get best stream url if possible
         if not stream_url:
             stream_url = get_stream_url(streaming_data['adaptiveFormats'], itags=ITAGS_LIST)  # get best stream url if possible
     except:
         try:
-            streaming_data = result.vid_info['streamingData']
             stream_url = streaming_data['hlsManifestUrl']
             vtype = 'live'
         except: # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
             try:
                 with YoutubeDL(YDL_OPTS) as ydl:
-                    info = ydl.extract_info(query if is_url else f"https://www.youtube.com/watch?v={query}", download=False)
+                    info = ydl.extract_info(url, download=False)
                     if 'is_live' in info and info['is_live']:
                         vtype = 'live'
                         stream_url = info['formats'][0]['url']
@@ -239,10 +248,29 @@ def info_from_url(query, is_url=True):
                         elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
-                        else:
-                            stream_url = None
+                        elif formats['format_id'] in EXTRA_FORMATS:
+                            stream_url = formats['url']
+                            break
             except:
                 stream_url = None
+    if not_youtube:
+        try: thumb = info['thumbnail']
+        except: thumb = 'no_image'
+        try: dur = info['duration']
+        except: dur = 0
+        try: title = info['title']
+        except: title = 'Some audio'
+        try: channel = info['uploader']
+        except: channel = 'Someone'
+        try: views = info['view_count']
+        except: views = 'A lot, probably'
+        return {
+            'obj': None, 'title': title, 'channel': channel, 'views': views,
+            'length': dur, 'id': None, 'thumbnail_url': thumb,
+            'url': url, 'stream_url': stream_url, 'channel_url': 'no_image', 'type': vtype,
+            'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0}
+            # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+        }
     return {
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
@@ -1242,12 +1270,21 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             not_loaded_list = []
             failed_check = False
             if vtype == 'unknown':
-                if not force_play:
-                    await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-                    return
-                else:
-                    links = [url]
-                    vtype = 'raw_audio'
+                try:
+                    if not isinstance(url, dict):
+                        links = [info_from_url(video_select['url'])]
+                        if not links[0]['stream_url']:
+                            not_loaded_list.append(f"[{links[0]['title']}]({links[0]['url']})")
+                            end = True
+                    else:
+                        links = [video_select]
+                except:
+                    if not force_play:
+                        await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                        return
+                    else:
+                        links = [url]
+                        vtype = 'raw_audio'
             elif vtype == 'playlist':
                 try:
                     playlist = Playlist(video_select['url'])
@@ -2127,7 +2164,7 @@ async def daycore(ctx):
 
 
 @bot.command(name='pitch', aliases=['tone'])
-async def pitch(ctx, semitones, speed=1.0, *, silent=False):
+async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
     try:
         if not check_perms(ctx, "use_pitch"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -2151,10 +2188,11 @@ async def pitch(ctx, semitones, speed=1.0, *, silent=False):
             return
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
+        if not semitones: semitones = 0  # return to default
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={pitch_factor}, rubberband=tempo={speed}"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={pitch_factor}, rubberband=tempo={speed}, volume={vid["audio_options"]["volume"]}dB"'
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
         vid['audio_options'] = {'pitch': pitch_factor, 'speed': speed, 'volume': vid['audio_options']['volume']}
@@ -2197,7 +2235,7 @@ async def volume(ctx, volume: str):
         vid = queue[current_song]
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "volume={vol_db}dB"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, rubberband=tempo={vid["audio_options"]["speed"]}, volume={vol_db}dB"'
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
         vid['audio_options']['volume'] = vol_db
