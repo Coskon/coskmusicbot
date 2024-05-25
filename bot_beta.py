@@ -191,6 +191,8 @@ def fetch_info(result):
                         elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
+                        else:
+                            stream_url = None
             except:
                 stream_url = None
     return {
@@ -237,6 +239,8 @@ def info_from_url(query, is_url=True):
                         elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
+                        else:
+                            stream_url = None
             except:
                 stream_url = None
     return {
