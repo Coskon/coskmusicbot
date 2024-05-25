@@ -2,7 +2,7 @@ import discord
 import asyncio
 import utilidades
 import spotipy
-import os, random, re, json, traceback, time, configparser
+import os, random, re, json, traceback, time, configparser, math
 from discord.ext import commands, tasks
 from pytube import Playlist, Search, YouTube
 from yt_dlp import YoutubeDL
@@ -80,7 +80,7 @@ loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -hide_banner -loglevel error',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -sn'
 }
 YDL_OPTS = {
@@ -178,7 +178,7 @@ def fetch_info(result):
         except:  # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
             try:
                 with YoutubeDL(YDL_OPTS) as ydl:
-                    info = ydl.extract_info(result.watch_url, download=False)
+                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={result.video_id}", download=False)
                     if 'is_live' in info and info['is_live']:
                         vtype = 'live'
                         stream_url = info['formats'][0]['url']
@@ -192,14 +192,14 @@ def fetch_info(result):
                             stream_url = formats['url']
                             break
                         else:
-                            stream_url = None
+                            return None
             except:
-                stream_url = None
+                return None
     return {
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0}
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
     }
 
 
@@ -207,7 +207,7 @@ def search_youtube(query, max_results=18):
     tmp_l = Search(query).results[:max_results]
     with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
         results = executor.map(fetch_info, tmp_l)
-    return list(results)
+    return list(filter(None, results))
 
 
 def info_from_url(query, is_url=True):
@@ -247,7 +247,7 @@ def info_from_url(query, is_url=True):
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0}
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
     }
 
 
@@ -291,7 +291,7 @@ async def choice(ctx, embed, reactions):
 
 async def play_next(ctx):
     global dict_current_song, loop_mode, dict_queue
-    if ctx.voice_client.is_playing(): return
+    voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
     gid = str(ctx.guild.id)
     dict_queue.setdefault(gid, list())
     dict_current_song.setdefault(gid, 0)
@@ -434,16 +434,17 @@ async def members_left():
         temp_ctx = ctx_dict.copy()
         for gid2 in ctx_dict:
             ctx = ctx_dict[gid2]
-            if not ctx.voice_client and all(i == 0 for i in list(active_servers.values())):
+            voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+            if not voice_client and all(i == 0 for i in list(active_servers.values())):
                 members_left.stop()
                 return
-            if len(ctx.voice_client.channel.members) <= 1:
+            if len(voice_client.channel.members) <= 1:
                 await ctx.send(random.choice(nobody_left_texts))
                 gid = str(ctx.guild.id)
                 loop_mode[gid] = loop_mode.setdefault(gid, "off")
                 if loop_mode[gid] != "off": await loop(ctx, 'off')
                 try:
-                    await ctx.voice_client.disconnect()
+                    await voice_client.disconnect()
                 except:
                     pass
                 change_active(ctx, mode='d')
@@ -779,12 +780,24 @@ async def rewind(ctx):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global loop_mode, go_back
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, [])
+        queue = dict_queue[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client is None or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         go_back = True
-        if ctx.voice_client.is_paused(): ctx.voice_client.resume()
-        if ctx.voice_client.is_playing(): ctx.voice_client.stop()
+        if voice_client.is_paused(): voice_client.resume()
+        if voice_client.is_playing(): voice_client.stop()
     except:
         traceback.print_exc()
 
@@ -798,10 +811,15 @@ async def join(ctx):
         if not ctx.author.voice:
             await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return None
-        if ctx.voice_client is not None and ctx.voice_client.is_connected():
-            await ctx.send(random.choice(already_connected_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         channel = ctx.author.voice.channel
+        if voice_client is not None:
+            if channel != voice_client.channel:
+                await ctx.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES else None)
+                return
+            elif voice_client.is_connected():
+                await ctx.send(random.choice(already_connected_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                return
         await channel.connect()
         change_active(ctx, mode='a')
         txt = random.choice(entering_texts) + channel.name + "."
@@ -831,9 +849,13 @@ async def leave(ctx, ignore=False):
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] != "off": await loop(ctx, 'off')
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         try:
-            if ctx.voice_client and ctx.voice_client.is_connected():
-                await ctx.voice_client.disconnect()
+            if voice_client is not None and voice_client.is_connected():
+                await voice_client.disconnect()
         except:
             traceback.print_exc()
             pass
@@ -857,7 +879,8 @@ async def info(ctx):
         if not SPOTIFY_SECRET or not SPOTIFY_ID:
             await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        if ctx.voice_client and ctx.voice_client.is_playing():
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None and voice_client.is_playing():
             gid = str(ctx.guild.id)
             dict_queue.setdefault(gid, list())
             dict_current_song.setdefault(gid, 0)
@@ -1061,6 +1084,7 @@ async def genre(ctx, *, query=""):
 async def play(ctx, *, url="", append=True, gif=False, search=True):
     global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
     try:
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not check_perms(ctx, "use_play"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
@@ -1073,13 +1097,18 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         voice_channel = ctx.author.voice.channel
-
         if not voice_channel.permissions_for(ctx.me).connect:
             await ctx.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-
-        if not ctx.voice_client or not ctx.voice_client.is_connected():
+        if voice_client:
+            if voice_client.channel != voice_channel:
+                await ctx.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES else None)
+                return
+            if not voice_client.is_connected():
+                await voice_channel.connect()
+        else:
             await voice_channel.connect()
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         change_active(ctx, mode='a')
         ctx_dict[gid] = ctx
 
@@ -1096,6 +1125,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             if not is_url(url):
                 search_message = await ctx.send(searching_text)
                 results = search_youtube(url, max_results=MAX_SEARCH_SELECT if search else 1)
+
                 if not results:
                     await search_message.delete()
                     await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1161,6 +1191,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             await message.delete()
                             disable_play = False
                             return
+                        except:
+                            traceback.print_exc()
+                            return
                         disable_play = False
                         await message.delete()
                         if button_choice[gid] < 0:
@@ -1175,7 +1208,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             await ctx.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES else None)
                         else:
                             video_select = results[button_choice[gid]+5*(current_page-1)]
-                            if ctx.voice_client:
+                            if voice_client:
                                 await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
                             else:
                                 return
@@ -1189,7 +1222,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             if not members_left.is_running(): members_left.start()
                             return
                         video_select = results[emoji_to_number.get(emoji_choice, None) - 1]
-                        if ctx.voice_client:
+                        if voice_client:
                             await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
                         else:
                             return
@@ -1200,7 +1233,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                 video_select = {
                     'obj': None, 'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None,
                     'url': url, 'type': None, 'stream_url': None, 'views': None, 'channel_url': None,
-                    'audio_options': {'pitch': 1.0, 'speed': 1.0}
+                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
                 }
         end = False
         if not all_chosen:
@@ -1232,7 +1265,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                     embed_playlist = discord.Embed(
                         title=playlist_added_title,
                         description=playlist_added_desc.replace("%name", ctx.author.global_name)
-                            .replace("%title", str(playlist.title)).replace("%ch_name", ctx.voice_client.channel.name)
+                            .replace("%title", str(playlist.title)).replace("%ch_name", voice_channel.name)
                             .replace("%pl_length", str(len(links))),
                         color=EMBED_COLOR
                     )
@@ -1274,7 +1307,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0}
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
                     }
                 album = sp.album(vid_id)
                 tracks = album['tracks']['items']
@@ -1301,7 +1334,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0}
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
                     }
                 playlist = sp.playlist(vid_id)
                 tracks = playlist['tracks']['items']
@@ -1312,7 +1345,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             if vtype in {'video', 'live'}:
                 if not isinstance(url, dict):
                     links = [info_from_url(video_select['url'])]
-                    print(links)
                     if not links[0]['stream_url']:
                         not_loaded_list.append(f"[{links[0]['title']}]({links[0]['url']})")
                         end = True
@@ -1336,7 +1368,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             embed = discord.Embed(
                 title=song_chosen_title,
                 description=song_chosen_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace(
-                    "%ch_name", ctx.voice_client.channel.name),
+                    "%ch_name", voice_channel.name),
                 color=EMBED_COLOR
             )
             embed2 = discord.Embed(
@@ -1360,7 +1392,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             if vid['stream_url']:
                 if vtype == 'playlist':
                     await ctx.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES else None)
-                elif ctx.voice_client.is_playing():
+                elif voice_client is not None and voice_client.is_playing():
                     await ctx.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES else None)
                 else:
                     dict_current_time[gid] = 0
@@ -1373,7 +1405,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             dict_current_time[gid] = 0
             raw_embed = discord.Embed(
                 title=song_chosen_title,
-                description=raw_audio_desc.replace("%name", ctx.author.global_name).replace("%ch_name", ctx.voice_client.channel.name),
+                description=raw_audio_desc.replace("%name", ctx.author.global_name).replace("%ch_name", voice_client.channel.name),
                 color=EMBED_COLOR
             )
             await ctx.send(embed=raw_embed, reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1385,35 +1417,31 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                 for video in links: dict_queue[gid].append({
                     'obj': None, 'title': 'Raw audio file', 'channel': 'Someone', 'views': 'No views',
                     'length': 0, 'id': 'none', 'thumbnail_url': 'no_image', 'url': video, 'stream_url': video,
-                    'channel_url': 'no_image', 'type': 'raw_audio', 'audio_options': {'pitch': 1.0, 'speed': 1.0}
+                    'channel_url': 'no_image', 'type': 'raw_audio', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
                 })
             else:
                 for video in links: dict_queue[gid].append(video)
         # LVL HANDLE
         await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
         vote_skip_dict[gid] = -1
-        if ctx.voice_client and not ctx.voice_client.is_paused():
+        if voice_client and not voice_client.is_paused():
             try:
-                if not ctx.voice_client.is_playing():
-                    ctx.voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **FFMPEG_OPTIONS), after=lambda e: on_song_end(ctx, e))
-                    ctx.voice_client.is_playing()
+                if not voice_client.is_playing():
+                    updated_options = FFMPEG_OPTIONS.copy()
+                    if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
+                        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                    voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **updated_options), after=lambda e: on_song_end(ctx, e))
+                    voice_client.is_playing()
             except Exception as e:
                 print(e)
                 pass
     except:
         traceback.print_exc()
-        try:
-            await play(ctx, url=url, append=append, gif=gif, search=search)
-        except:
-            try:
-                await leave(ctx, True)
-            except:
-                return None
     #except YoutubeDLError as e:
     #    traceback.print_exc()
     #    await ctx.send(random.choice(restricted_video_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-
-
 
 
 @bot.command(name='level', aliases=['lvl'])
@@ -1476,15 +1504,21 @@ async def remove(ctx, index):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global dict_current_song, dict_current_time
-        if not ctx.author.voice: return
-        if not ctx.voice_client:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is None or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         try:
             index = int(index) - 1
             if not 0 <= index < len(queue): raise Exception
@@ -1511,15 +1545,21 @@ async def forward(ctx, time):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global dict_current_time, seek_called, dict_queue, dict_current_song
-        if not ctx.author.voice: return
-        if not ctx.voice_client or not ctx.voice_client.is_playing():
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
+        if not voice_client or not voice_client.is_playing() or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         vid = queue[current_song]
         if vid['type'] == 'live':
             await ctx.send(cannot_change_time_live.replace("%command", "forward/backward"), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1538,12 +1578,14 @@ async def forward(ctx, time):
             return
         if dict_current_time[gid] < 0: dict_current_time[gid] = 0
         seek_called = True
-        if ctx.voice_client.is_paused(): ctx.voice_client.resume()
-        ctx.voice_client.stop()
+        if voice_client.is_paused(): voice_client.resume()
+        voice_client.stop()
         updated_options = FFMPEG_OPTIONS.copy()
-        updated_options['options'] += f' -filter:a "asetrate=44100*{vid["audio_options"]["pitch"]},aresample=44100,atempo={vid["audio_options"]["speed"] / vid["audio_options"]["pitch"]}"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        ctx.voice_client.play(
+        voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
             after=lambda e: on_song_end(ctx, e))
 
@@ -1568,15 +1610,21 @@ async def seek(ctx, time):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global dict_current_time, seek_called, dict_queue, dict_current_song
-        if not ctx.author.voice: return
-        if not ctx.voice_client or not ctx.voice_client.is_playing():
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if not voice_client or not voice_client.is_playing() or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         vid = queue[current_song]
         if vid['type'] == 'live':
             await ctx.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES else None)
@@ -1591,12 +1639,14 @@ async def seek(ctx, time):
         else:
             dict_current_time[gid] = int(convert_formated(time))
         seek_called = True
-        if ctx.voice_client.is_paused(): ctx.voice_client.resume()
-        ctx.voice_client.stop()
+        if voice_client.is_paused(): voice_client.resume()
+        voice_client.stop()
         updated_options = FFMPEG_OPTIONS.copy()
-        updated_options['options'] += f' -filter:a "asetrate=44100*{vid["audio_options"]["pitch"]},aresample=44100,atempo={vid["audio_options"]["speed"]/vid["audio_options"]["pitch"]}"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        ctx.voice_client.play(
+        voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
             after=lambda e: on_song_end(ctx, e))
 
@@ -1620,6 +1670,13 @@ async def loop(ctx, mode="change"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global loop_mode
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
@@ -1640,14 +1697,24 @@ async def shuffle(ctx):
         if not check_perms(ctx, "use_shuffle"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        global dict_current_song
+        global dict_current_song, dict_current_time
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
-        dict_current_song[gid] = -1
         dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if not voice_client or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client.is_playing(): voice_client.pause()
+        dict_current_song[gid] = -1
         random.shuffle(queue)
-        global dict_current_time
-        await ctx.voice_client.stop()
+        await voice_client.stop()
         if update_current_time.is_running(): update_current_time.stop()
         dict_current_time[gid] = 0
     except:
@@ -1701,7 +1768,20 @@ async def pause(ctx):
         if not check_perms(ctx, "use_pause"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        ctx.voice_client.pause()
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        queue = dict_queue[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if not voice_client or not voice_client.is_playing() or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client.pause()
         if update_current_time.is_running(): update_current_time.stop()
     except:
         traceback.print_exc()
@@ -1713,7 +1793,21 @@ async def resume(ctx):
         if not check_perms(ctx, "use_resume"):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        ctx.voice_client.resume()
+        global dict_queue
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        queue = dict_queue[gid]
+        if voice_client is None or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client.resume()
         if not update_current_time.is_running(): update_current_time.start()
     except:
         traceback.print_exc()
@@ -1725,15 +1819,22 @@ async def skip(ctx):
         global vote_skip_dict, loop_mode, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
         gid = str(ctx.guild.id)
         vote_skip_dict.setdefault(gid, -1)
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
         if vote_skip_dict[gid] == -1:
-            if not ctx.voice_client:
+            if voice_client is None:
                 await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                 return
             if not check_perms(ctx, "use_skip"):
                 if not check_perms(ctx, "use_vote_skip"):
                     await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
                     return
-                members = ctx.voice_client.channel.members
+                members = voice_client.channel.members
                 member_amount = len(members) - 1
                 majority = round(member_amount / 2)
                 vote_message = await ctx.send(vote_skip_text.replace("%num", str(majority)))
@@ -1742,15 +1843,15 @@ async def skip(ctx):
                 await asyncio.sleep(1)
                 vote_skip_dict[gid], vote_skip_counter[gid] = 0, 0
                 message_id_dict[gid], majority_dict[gid] = vote_message.id, [majority, list(
-                    user.id for user in ctx.voice_client.channel.members)]
+                    user.id for user in voice_client.channel.members)]
                 ctx_dict_skip[gid] = ctx
                 vote_skip.start()
         if vote_skip_dict[gid] == 0: return
         vote_skip_dict[gid], vote_skip_counter[gid] = -1, 0
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
-        if ctx.voice_client.is_paused(): ctx.voice_client.resume()
-        if ctx.voice_client.is_playing(): ctx.voice_client.stop()
+        if voice_client.is_paused(): voice_client.resume()
+        if voice_client.is_playing(): voice_client.stop()
     except:
         traceback.print_exc()
 
@@ -1762,10 +1863,20 @@ async def goto(ctx, num):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global dict_queue, dict_current_song
-        num = int(num)
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
-        dict_queue.setdefault(gid, list())
+        dict_queue.setdefault(gid, [])
         queue = dict_queue[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client is None or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        num = int(num)
         if 0 < num <= len(queue):
             dict_current_song[gid] = num - 2
             await skip(ctx)
@@ -1844,7 +1955,8 @@ async def lyrics(ctx, *, query=None):
         if not SPOTIFY_SECRET or not SPOTIFY_ID or not GENIUS_ACCESS_TOKEN:
             await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        if query is None and not ctx.voice_client:
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if query is None and voice_client is None:
             await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         if not query:
@@ -1889,8 +2001,12 @@ async def songs(ctx, number=None, *, artista=""):
         if not SPOTIFY_SECRET or not SPOTIFY_ID:
             await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if number is None and artista == "":
-            if ctx.voice_client and ctx.voice_client.is_playing():
+            if voice_client is not None and voice_client.is_playing():
                 gid = str(ctx.guild.id)
                 dict_queue.setdefault(gid, list())
                 dict_current_song.setdefault(gid, 0)
@@ -1937,7 +2053,11 @@ async def chords(ctx, *, query=""):
         if not SPOTIFY_ID or not SPOTIFY_SECRET:
             await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
-        if not query and ctx.voice_client and ctx.voice_client.is_playing():
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if not query and voice_client is not None and voice_client.is_playing():
             gid = str(ctx.guild.id)
             dict_queue.setdefault(gid, list())
             dict_current_song.setdefault(gid, 0)
@@ -1970,7 +2090,7 @@ async def chords(ctx, *, query=""):
 @bot.command(name='nightcore', aliases=['spedup'])
 async def nightcore(ctx):
     try:
-        await pitch(ctx, semitones=3.3, speed=1+1/3.3, silent=True)
+        await pitch(ctx, semitones=3.3, speed=1.30303, silent=True)
     except:
         traceback.print_exc()
 
@@ -1978,7 +2098,7 @@ async def nightcore(ctx):
 @bot.command(name='daycore', aliases=['slowed'])
 async def daycore(ctx):
     try:
-        await pitch(ctx, semitones=-2.61, speed=1-1/2.61, silent=True)
+        await pitch(ctx, semitones=-2.61, speed=0.86, silent=True)
     except:
         traceback.print_exc()
 
@@ -1990,27 +2110,80 @@ async def pitch(ctx, semitones, speed=1.0, *, silent=False):
             await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         global dict_queue, dict_current_song, dict_current_time
-        ctx.voice_client.pause()
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        speed = max(min(speed, 5), 0.2)
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if not voice_client or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "asetrate=44100*{pitch_factor},aresample=44100,atempo={speed/pitch_factor}"'
-        ctx.voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
+        updated_options['options'] += f' -filter:a "rubberband=pitch={pitch_factor}, rubberband=tempo={speed}"'
+        voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
-        vid['audio_options'] = {'pitch': pitch_factor, 'speed': speed}
+        vid['audio_options'] = {'pitch': pitch_factor, 'speed': speed, 'volume': vid['audio_options']['volume']}
         if not silent:
             embed = discord.Embed(
                 title=pitch_title,
-                description=pitch_desc.replace("%sign", "+" if float(semitones) >= 0 else "-").replace("%tone", str(abs(float(semitones)))),
+                description=pitch_desc.replace("%sign", "+" if float(semitones) >= 0 else "-").replace("%tone", str(abs(float(semitones)))).replace("%speed", str(speed)),
                 color=EMBED_COLOR
             )
             await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='volume', aliases=['vol'])
+async def volume(ctx, volume: str):
+    try:
+        if not check_perms(ctx, "use_volume"):
+            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time
+        if not ctx.author.voice:
+            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        volume = max(min(float(volume.replace("%", "")), 250), 0.01)
+        vol_db = 20*math.log10(volume/100)
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if not voice_client or not queue:
+            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            return
+        if voice_client.is_playing(): voice_client.pause()
+        vid = queue[current_song]
+        updated_options = FFMPEG_OPTIONS.copy()
+        updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
+        updated_options['options'] += f' -filter:a "volume={vol_db}dB"'
+        voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
+                              after=lambda e: on_song_end(ctx, e))
+        vid['audio_options']['volume'] = vol_db
+        embed = discord.Embed(
+            title=volume_title,
+            description=volume_desc.replace("%vol", f"{vol_db:.2f}dB"),
+            color=EMBED_COLOR
+        )
+        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
     except:
         traceback.print_exc()
 
