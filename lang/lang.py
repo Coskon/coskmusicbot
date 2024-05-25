@@ -71,6 +71,7 @@ if True: # only to minimize
     playlist_link = "Playlist link"
     playlist_link_desc = f'%url\n\n➤ **Title**: *%title*'
     playlist_link_desc_time = f"\n➤ **Total duration**: `%duration`"
+    playlist_duration_over_limit = f"Too much"
     video_max_duration = "Video is too long (`%video_limit` limit)."
     song_selected = "Chosen: %title"
     song_chosen_title = "Song chosen"
@@ -112,6 +113,7 @@ if True: # only to minimize
     song_skipped = "Song skipped."
     searching_text = "Searching..."
     cannot_change_time_live = "Cannot use `%command` on a live video."
+    couldnt_load_song = "Couldn't load song (private/age restricted): %title."
     missing_parameters = "ATTENTION: Missing parameter, file will be rewritten and parameters will be changed to default.\nPress 'Enter' to proceed."
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
@@ -287,6 +289,7 @@ if True: # only to minimize
     playlist_link = "Link de la lista de reproducción"
     playlist_link_desc = f'%url\n\n➤ **Título**: *%title*'
     playlist_link_desc_time = f"\n➤ **Duración total**: `%duration`"
+    playlist_duration_over_limit = f"Demasiado"
     video_max_duration = "El video es muy largo (límite de `%video_limit`)."
     song_selected = "Elegido: %title"
     song_chosen_title = "Canción elegida"
@@ -328,6 +331,7 @@ if True: # only to minimize
     song_skipped = "Canción saltada."
     searching_text = "Buscando..."
     cannot_change_time_live = "No se puede usar `%command` en un video en vivo."
+    couldnt_load_song = "No se pudo cargar la canción (privado/restricción por edad): %title."
     missing_parameters = "ATENCIÓN: Parámetro faltante, se reescribirá el archivo y los parámetros serán cambiados a sus valores por defecto.\nPresiona 'Enter' para proceder."
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
