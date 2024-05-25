@@ -1081,7 +1081,7 @@ async def genre(ctx, *, query=""):
 
 
 @bot.command(name='play', aliases=['p'])
-async def play(ctx, *, url="", append=True, gif=False, search=True):
+async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False):
     global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
     try:
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
@@ -1118,10 +1118,11 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             video_select = url.copy()
         else:
             separate_commands = str(url).split('-opt')
-            url = separate_commands[0]
+            url = separate_commands[0].strip()
             if len(separate_commands) > 1:
-                command = separate_commands[1].lower()
+                command = separate_commands[1].strip().lower()
                 if command in ['1', 'true', 'si', 'y', 'yes', 'gif']: gif = True
+                if command in ['force', 'forceplay', 'force_play', 'play']: force_play = True
             if not is_url(url):
                 search_message = await ctx.send(searching_text)
                 results = search_youtube(url, max_results=MAX_SEARCH_SELECT if search else 1)
@@ -1241,8 +1242,12 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
             not_loaded_list = []
             failed_check = False
             if vtype == 'unknown':
-                await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-                return
+                if not force_play:
+                    await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                    return
+                else:
+                    links = [url]
+                    vtype = 'raw_audio'
             elif vtype == 'playlist':
                 try:
                     playlist = Playlist(video_select['url'])
@@ -1356,7 +1361,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
         else:
             vtype = 'video'
 
-        vid = links[0].copy()
+        try: vid = links[0].copy()
+        except: vid = links[0]
         if vtype != 'raw_audio':
             if vid['length'] > MAX_VIDEO_LENGTH:
                 await ctx.send(video_max_duration.replace("%video_limit", str(convert_seconds(MAX_VIDEO_LENGTH))),
@@ -1381,7 +1387,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True):
                             value=playing_desc.replace("%url", vid['url']).replace("%title", titulo).replace("%duration", str(duracion)),
                             inline=False)
             img = None
-            if gif and TENOR_API_KEY: img = search_gif(titulo)
+            if gif and TENOR_API_KEY: img = search_gif(titulo, TENOR_API_KEY)
             if not img: img = vid['thumbnail_url']
             if gif:
                 embed.set_image(url=img)
