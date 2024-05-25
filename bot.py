@@ -37,7 +37,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 27:
+if len(parameters.keys()) < 29:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
