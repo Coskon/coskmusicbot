@@ -33,7 +33,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 28:
+if len(parameters.keys()) < 29:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -1316,8 +1316,17 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     }
                 album = sp.album(vid_id)
                 tracks = album['tracks']['items']
+                for _ in range(SPOTIFY_LIMIT // 100 + 1):
+                    if not album['tracks']['next']: break
+                    album['tracks'] = sp.next(album['tracks'])
+                    tracks.extend(album['tracks']['items'])
+                if len(tracks) > SPOTIFY_LIMIT:
+                    await ctx.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
+                        SPOTIFY_LIMIT - len(tracks)))).replace("%discarded",
+                                                                   str(abs(SPOTIFY_LIMIT - len(tracks)))))
+                    tracks = tracks[:SPOTIFY_LIMIT]
                 with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
-                    links = list(executor.map(fetch_video_data, tracks))
+                    links = list(filter(None, executor.map(fetch_video_data, tracks)))
             elif vtype == 'sp_playlist':
                 def fetch_video_data(track):
                     track = track['track']
@@ -1343,8 +1352,16 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     }
                 playlist = sp.playlist(vid_id)
                 tracks = playlist['tracks']['items']
+                for _ in range(SPOTIFY_LIMIT // 100 + 1):
+                    if not playlist['tracks']['next']: break
+                    playlist['tracks'] = sp.next(playlist['tracks'])
+                    tracks.extend(playlist['tracks']['items'])
+                if len(tracks) > SPOTIFY_LIMIT:
+                    await ctx.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
+                        SPOTIFY_LIMIT - len(tracks)))).replace("%discarded", str(abs(SPOTIFY_LIMIT - len(tracks)))))
+                    tracks = tracks[:SPOTIFY_LIMIT]
                 with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
-                    links = list(executor.map(fetch_video_data, tracks))
+                    links = list(filter(None, executor.map(fetch_video_data, tracks)))
             elif vtype == 'raw_audio':
                 links = [url]
             if vtype in {'video', 'live'}:
