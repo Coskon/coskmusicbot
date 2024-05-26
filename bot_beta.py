@@ -37,7 +37,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 29:
+if len(parameters.keys()) < 30:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -98,8 +98,9 @@ YDL_OPTS = {
     'extract_flat': True,
     'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
 }
-EXTRA_FORMATS = {'Audio_Only', '160p', '360p', '480p', '720p60', '1080p60', '0', 'hls_mp3_128', 'http_mp3_128',
-                 'hls_opus_64', 'hls', 'mp4'}
+PREFERRED_FORMATS = {'http', 'mp4', 'Audio_Only'}
+EXTRA_FORMATS = {'160p', '360p', '480p', '720p60', '1080p60', '0', 'hls_mp3_128', 'http_mp3_128',
+                 'hls_opus_64', 'hls'}
 
 ## NORMAL FUNCTIONS ##
 def get_sp_id(url):
@@ -186,12 +187,12 @@ def fetch_info(result):
             try:
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(f"https://www.youtube.com/watch?v={result.video_id}", download=False)
+                    stream_url = None
                     if 'is_live' in info and info['is_live']:
                         vtype = 'live'
                         stream_url = info['formats'][0]['url']
                     else:
                         vtype = 'video'
-                    stream_url = None
                     for formats in info['formats']:
                         fid = formats['format_id'].split("-")[0]
                         if fid in {'233', '234'}:
@@ -200,7 +201,7 @@ def fetch_info(result):
                         elif fid in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
-                        elif fid in EXTRA_FORMATS:
+                        elif fid in EXTRA_FORMATS | PREFERRED_FORMATS:
                             stream_url = formats['url']
                             break
                     if not stream_url:
@@ -227,6 +228,8 @@ def info_from_url(query, is_url=True, not_youtube=False):
     url = query if is_url else f"https://www.youtube.com/watch?v={query}"
     try:
         result = YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
+        if result['playabilityStatus']['status'] == 'ERROR':
+            raise Exception
     except:
         not_youtube = True
     vtype = 'video'
@@ -244,12 +247,12 @@ def info_from_url(query, is_url=True, not_youtube=False):
             try:
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(url, download=False)
+                    stream_url = None
                     if 'is_live' in info and info['is_live']:
                         vtype = 'live'
                         stream_url = info['formats'][0]['url']
                     else:
                         vtype = 'video'
-                    stream_url = None
                     for formats in info['formats']:
                         fid = formats['format_id'].split("-")[0]
                         if fid in {'233', '234'}:
@@ -258,9 +261,14 @@ def info_from_url(query, is_url=True, not_youtube=False):
                         elif fid in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
-                        elif fid in EXTRA_FORMATS:
+                        elif fid in PREFERRED_FORMATS:
                             stream_url = formats['url']
                             break
+                    if not stream_url:
+                        for formats in info['formats']:
+                            if fid in EXTRA_FORMATS:
+                                stream_url = formats['url']
+                                break
                         if not stream_url:
                             stream_url = info['formats'][0]['url']
             except:
