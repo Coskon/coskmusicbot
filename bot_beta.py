@@ -228,7 +228,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
     url = query if is_url else f"https://www.youtube.com/watch?v={query}"
     try:
         result = YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
-        if result['playabilityStatus']['status'] == 'ERROR':
+        if result.vid_info['playabilityStatus']['status'] == 'ERROR':
             raise Exception
     except:
         not_youtube = True
