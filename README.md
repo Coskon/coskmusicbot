@@ -23,7 +23,9 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason. (*only in beta*)
 - Spotify to youtube conversion (*only in beta*)
 - Auto DJ (*only in beta*)
+- Play from file attachments (*only in beta*)
 - Raw audio URLs support.
+- Support for shortened links.
 - English and Spanish languages.
 - User permissions for each command.
 - Can be used in multiple servers at the same time, meant for a few servers at most.
@@ -37,20 +39,14 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - And more...
 
 ## Recently added
+- Play from file attachment(s): When using the `play` or `fastplay` commands, appart from the url/query, you can now attach audio files to the message (if it doesn't play then it's probably a incompatibility issue, though it seems to accept a lot). They will be added to queue in order of attachment, and they will be added first, before the url/query is processed.
+- `shazam` and `autodj` are now faster for longer videos.
 - New command: `autodj [query]`, alongside new parameter `AUTO_DJ_MAX_ADD`, gets related songs from the one it's currently playing/the user provided via query, and adds them to the queue each time the queue is about to end. By default it adds 3 each time. This automatically overrides the current loop mode, but changing the loop mode will override the autodj, so if you want to stop it you can `leave` or `loop [any loop mode]`.
 - Slightly modified `nowplaying` command to be more accurate when retrieving the artist using the spotify API.
 - New command: `eq [mode] [volume]`, alongside two quicker options, `bassboost` and `highboost`. "mode" is either bass/high, and "volume" is how much that band is turning up the volume.
 - New command: `shazam [duration]`, takes a little segment of the currently playing song, gets it (like shazam) and gives info about it. "duration" is by default 15 seconds. Useful if you're listening to some sort of mix, livestream, etc. It's a little slower on livestreams, but in general 15 seconds tends to work great.
 - New command/option: `restrict [channel]`, given the name of a text channel, it will restrict practically all bot messages to that channel (this disables referencing). Useful to set a "commands" channel. Reset it by putting no channel or "ALL_CHANNELS". See current channel it's restricted to in `options`.
 - New parameters: `SKIP_PRIVATE_SEARCH` (ignore private/restricted videos when searching, makes searching faster), `SPOTIFY_LIMIT` (limit of tracks in a spotify playlist/album).
-- Two new commands: `nightcore` and `daycore`, they speed up/slow down the song to a "proper nightcore/daycore level", for better pitch and speed control use `pitch`.
-- Changed `pitch`, now takes as a second optional parameter "speed", 1.0 by default (meaning it will not change no matter the pitch), to speed up the song alongside the pitch calculate the speed as `1+semitones/12`.
-- ~~Now `seek`, `forwards` and `backwards` keep the pitch and speed that was set.~~ Audio options are always kept.
-- Changed the amount of buttons to 10 (the reactions didnt change). Now, appart from choosing from 1 of the 5 songs available, you can change pages to see more results, choose all songs in the chosen page or select a random one in that page. The timeout limit works normally, with a maximum of 60 button interactions (safe limit). The search limit for these videos can be changed in the parameters, by default is double the number of threads to use, though that is only significant in the beta, and apparently pytube only searches up to 18 results anyways. This will probably be changed for the option 'search_limit' to make it server-independant.
-- Parameter to enable or disable references on each bot message, in case it bothers you.
-- There should be more support for different youtube links, even weird ones.
-- Support for shortened links, any type. Slightly slower so i recommend using normal urls.
-- Minor bug fixes.
 
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
@@ -107,7 +103,7 @@ Why is in beta: *Will be released when i make new embeds/messages to make it loo
 ## Command list
 You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
 - `help [command]`: Shows more information about the given command. If no command is provided, shows a list of all commands.
-- `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video.
+- `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video. You can also add audio attachments to be played (*only in beta*).
 - `fastplay [query]`: Works the same as `play`, but skips having to choose.
 - `leave`: Disconnects the bot from the voice channel and clears the song queue.
 - `skip`: Skips to the next song, leaves if its the last song (unless loop is enabled). For users without permission, initiates a skip vote.
@@ -121,14 +117,20 @@ You can see aliases for each command using the bot. If you want to change the na
 - `loop [mode]`: Changes the loop mode (`all/queue` repeats the whole queue, `shuffle/random` randomizes the next song each time, `one` repeats the current song and `off` disables it). If no mode is given, it switches between `all` and `off`.
 - `seek [time]`: Goes to the given time, time can be given either in seconds or in HH:MM:SS format.
 - `forward [time]`: Fast forwards or rewinds the specified time (depends if the time is positive or negative), time can be given either in seconds or in HH:MM:SS format.
+- `volume [volume]`: Changes the volume of the current track, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB)
 - `shuffle`: Randomizes the order of the songs in the queue.
+- `autodj [query]`: Periodically gets similar songs from whats playing/the query (if given), and ads them to the queue.
+- `shazam [duration]`: Tries to recognize the currently playing song and gives info about it. "duration" is the length of the clip to search, default is 15 (in seconds).
+- `eq [type] [volume]`: Equalizes the track, types: "bass", "high". Volume in dB, from 0 to 12dB. This will be changed to be more in-depth.
+- `bassboost`/`highboost`: Shortcuts for `eq` to boost the bass/high frequencies respectively.
 - `nowplaying`: Shows information about the current song (title, artist, duration). **Requires Spotify API**
 - `lyrics [song]`: Shows the lyrics of the specified song. If no song is given, it shows the lyrics of the song currently playing. **Requires Spotify and Genius API**
 - `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. **Requires Spotify API**
 - `songs [number] [artist]`: Shows the top "number" (10 by default) songs from the specified artist. If no artist is given, it will retrieve it from the song currently playing. **Requires Spotify API**
 - `genre [genre]`: Shows songs of the given genre. If no genre is specified, shows the list of available genres to search. **Requires Spotify API**
 - `search [platform] [query]`: Searches in youtube (by default) or spotify the given query and shows the results. **Requires Spotify API**
-- `pitch [semitones] [change speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). (*only beta: If change speed is provided (anything at all), it will change the speed of the song along with the pitch.*)
+- `pitch [semitones] [speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). You can also change the speed of the track, by default it will keep the same speed (*only in beta*).
+- `nightcore`/`daycore`: Shortcuts for `pitch` to pitch up and speed up/pitch down and slow down the song respectively.
 - `steam [user]`: Shows the steam profile of the specified user.
 - `ping`: Shows the bot latency.
 - `pfp`: Shows your profile picture.
@@ -136,6 +138,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `chatgpt [message]`: Answers the message using ChatGPT. **Requires OpenAI API**
 - `perms`: Shows what permissions does the bot have in the server.
 - `options [option] [value]`: Changes the option "option" to have the specified value. If no option is given, it shows the available options and its current values.
+- `restrict [channel]`: Restricts practically all bot messages to the given channel. Use `restrict` or `restrict ALL_CHANNELS` to go back to default.
 - `add_prefix [prefix]`: Add the specified prefix.
 - `del_prefix [prefix]`: Removes the specified prefix.
 - `available_perms`: Shows the list of all available permissions a user can have, and a list of the permissions a user has by default.
