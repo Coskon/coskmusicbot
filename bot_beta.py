@@ -369,10 +369,10 @@ async def play_next(ctx):
         else:
             await leave(ctx, ignore=True)
     if auto:
-        await autodj(ctx, silent=True)
+        await autodj(ctx, silent=True, attachment=False)
     elif queue:
         url = queue[dict_current_song[gid]]
-        await ctx.invoke(bot.get_command('play'), url=url, append=False)
+        await ctx.invoke(bot.get_command('play'), url=url, append=False, attachment=False)
 
 
 async def update_level_info(ctx, user_id, xp_add):
@@ -405,11 +405,25 @@ async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
     if start > total_length-10: start -= 10
     start = max(0, start)
     clip_length = min(max(1, clip_length), 59)
-    response = requests.get(url)
+
+    if vtype == 'live' or total_length == 0:
+        start_byte = int(start * 7812)  # estimate
+        headers = {
+            'Range': f'bytes={start_byte}-'
+        }
+    else:
+        start_byte = int((start / total_length) * 1000000)  # estimate
+        end_byte = start_byte + int((clip_length / total_length) * 1000000)
+        headers = {
+            'Range': f'bytes={start_byte}-{end_byte}'
+        }
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
+
     try:
         AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(r'downloads/shazam.mp3', format='mp3')
     except:
+        print("pydub failed, moving to ffmpeg...")
         start_time = '00:00:00' if vtype == 'live' else '00:'*(start < 3600)+convert_seconds(start)
         end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:'*(start+10 < 3600)+convert_seconds(start+clip_length)
         subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1183,7 +1197,7 @@ async def genre(ctx, *, query=""):
 
 
 @bot.command(name='play', aliases=['p'])
-async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False, silent=False):
+async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False, silent=False, attachment=True):
     global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -1196,7 +1210,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if not url:
+        if not url and not ctx.message.attachments:
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_channel = ctx.author.voice.channel
@@ -1211,6 +1225,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 await voice_channel.connect()
         else:
             await voice_channel.connect()
+        if ctx.message.attachments and attachment:
+            for attachment in ctx.message.attachments:
+                await play(ctx, url=f"{attachment.url} -opt force", search=False, attachment=False)
+        if not url: return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         change_active(ctx, mode='a')
         ctx_dict[gid] = ctx
@@ -2461,13 +2479,17 @@ async def shazam(ctx, clip_length = '15'):
         if not recognized_song:
             await channel_to_send.send(shazam_no_song, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        genres_dict = recognized_song['genres']
-        genres = genres_dict['primary']
-        if len(genres_dict.keys()) > 1:
-            for genre in genres_dict:
-                genres += genres_dict[genre]
-            plural = True
-        else:
+        try:
+            genres_dict = recognized_song['genres']
+            genres = genres_dict['primary']
+            if len(genres_dict.keys()) > 1:
+                for genre in genres_dict:
+                    genres += genres_dict[genre]
+                plural = True
+            else:
+                plural = False
+        except:
+            genres = "Unknown"
             plural = False
         try:
             album = recognized_song['sections'][0]['metadata']
@@ -2532,7 +2554,7 @@ async def autodj(ctx, *, url="", silent=False):
         song_count = 0
         for track in tracks:
             try:
-                await play(ctx, url=search_youtube(query=f"+{track['title']}, {track['subtitle']} audio", max_results=1)[0], silent=True)
+                await play(ctx, url=search_youtube(query=f"+{track['title']}, {track['subtitle']} audio", max_results=1)[0], silent=True, attachment=False)
                 song_count += 1
             except:
                 pass
