@@ -14,29 +14,35 @@ Spotify support (convert from spotify to youtube). Most spotify links + codes sh
 
 Added support to play directly raw audio urls (such as the ones obtained from the yt downloader).  
 
-Switched back to pytube from yt-dlp, though kept it for age restricted videos and livestreams. Everything now is much faster, and you don't have to login with pytube, or change its code or anything like that. However, there are still sometimes where the auidio cuts (on normal videos, on restricted videos and livestreams it shouldn't happen because those are obtained with yt-dlp which provides a better url).
+Switched back to pytube from yt-dlp, though kept it for age restricted videos and livestreams. Everything now is much faster, and you don't have to login with pytube, or change its code or anything like that. However, the audio might cut though it rarely happens.
 
 ## Features
-- User permissions for each command (by default, admins get all permissions and everyone else have a default set of permissions which you can change in the code).
-- Can be used in multiple servers at the same time, with each one having its own.
-- Can have and modify multiple prefixes, even non single-characters prefixes.
-- Very simple level system.
-- Commands to show your pfp, a steam profile, use chatgpt, etc...
 - Use YouTube URLs or search, choosing from songs on multiple pages.
-- Playlists.
+- Accepts playlists.
 - Livestreams (*only in beta*)
+- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason. (*only in beta*)
 - Spotify to youtube conversion (*only in beta*)
+- Raw audio URLs support.
+- English and Spanish languages.
+- User permissions for each command.
+- Can be used in multiple servers at the same time, meant for a few servers at most.
+- Can have and modify multiple prefixes, even non single-characters prefixes.
 - Time limitation between command calls.
 - Lots of easily adjustable parameters.
-- English and Spanish languages.
-- Gradio UI.
 - Majority skip for users without permission.
+- Very simple level system.
+- Miscellaneous commands to show your pfp, a steam profile, use chatgpt, etc...
+- Gradio UI.
 - And more...
 
 ## Recently added
+- New command: `eq [mode] [volume]`, alongside two quicker options, `bassboost` and `highboost`. "mode" is either bass/high, and "volume" is how much that band is turning up the volume.
+- New command: `shazam [duration]`, takes a little segment of the currently playing song, gets it (like shazam) and gives info about it. "duration" is by default 15 seconds. Useful if you're listening to some sort of mix, livestream, etc. It's a little slower on livestreams, but in general 15 seconds tends to work great.
+- New command/option: `restrict [channel]`, given the name of a text channel, it will restrict practically all bot messages to that channel (this disables referencing). Useful to set a "commands" channel. Reset it by putting no channel or "ALL_CHANNELS". See current channel it's restricted to in `options`.
+- New parameters: `SKIP_PRIVATE_SEARCH` (ignore private/restricted videos when searching, makes searching faster), `SPOTIFY_LIMIT` (limit of tracks in a spotify playlist/album).
 - Two new commands: `nightcore` and `daycore`, they speed up/slow down the song to a "proper nightcore/daycore level", for better pitch and speed control use `pitch`.
-- Changed `pitch`, now takes as a second optional parameter "speed", 1.0 by default (meaning it will not change no matter the pitch), to speed up the song alongside the pitch calculate the speed as `1+1/semitones`.
-- Now `seek`, `forwards` and `backwards` keep the pitch and speed that was set.
+- Changed `pitch`, now takes as a second optional parameter "speed", 1.0 by default (meaning it will not change no matter the pitch), to speed up the song alongside the pitch calculate the speed as `1+semitones/12`.
+- ~~Now `seek`, `forwards` and `backwards` keep the pitch and speed that was set.~~ Audio options are always kept.
 - Changed the amount of buttons to 10 (the reactions didnt change). Now, appart from choosing from 1 of the 5 songs available, you can change pages to see more results, choose all songs in the chosen page or select a random one in that page. The timeout limit works normally, with a maximum of 60 button interactions (safe limit). The search limit for these videos can be changed in the parameters, by default is double the number of threads to use, though that is only significant in the beta, and apparently pytube only searches up to 18 results anyways. This will probably be changed for the option 'search_limit' to make it server-independant.
 - Parameter to enable or disable references on each bot message, in case it bothers you.
 - There should be more support for different youtube links, even weird ones.
@@ -71,24 +77,22 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 - Done! For Replit, you can just press "Run" (make sure `bot.py` is renamed to `main.py`) to run your bot.
 
 ## Important
-- The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.
-- Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")
-- ~~If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`.~~ No longer necessary.
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
+- ~~The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.~~ No longer necessary.
+- ~~Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")~~ No longer necessary.
+- ~~If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`.~~ No longer necessary.
 
 ## Beta disclaimer
 As the name indicates, it's in beta. It will not work as expected, at least not 100% of the time, have that in mind.  
 Current beta feature: *Streaming audio instead of downloading it*.  
-Why is in beta: *Bad stability, bot cutting audio. This will be fixed before 1.0.0 release, alongside new embeds/messages to make it look better.*  
-Possible causes: *Caused by the song urls and pytube client.*
-Possible solutions: *Maybe make sure the bot doesnt play anything if there's something already on, not even to check for errors.*
+Why is in beta: *Will be released when i make new embeds/messages to make it look better. Bot cutting audio should be fixed.*
 
 ## Limitations
-- Only supports YouTube.
+- ~~Only supports YouTube.~~ Not in the beta.
 - Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
 - ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
-- It has to download each video mp3, so it's limited by the host internet speed and disk space. (*in the beta it doesn't, but it's still limited by internet speed*)
+- ~~It has to download each video mp3, so it's limited by the host internet speed and disk space.~~ Not in the beta (still limited by internet speed).
 - Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
 - User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
 
@@ -141,7 +145,7 @@ A list of things that might get added:
 - [X] ~~Majority vote to skip/rewind for users without permission.~~
 - [ ] More info to the `steam` command.
 - [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
-- [ ] Spotify support to play songs and playlists.
+- [X] ~~Spotify support to play songs and playlists.~~
 - [X] ~~Languages.~~
 - [X] ~~User interface.~~ (kinda, will be modified)
 - [ ] Easier command customization.
@@ -149,4 +153,7 @@ A list of things that might get added:
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc)
 - [ ] Channel name in the info.
 - [ ] Better queue visualization, better info visualization, etc.
+- [ ] Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist)
 - [ ] Interactive buttons to play, resume, etc.
+- [ ] More in-depth equalization.
+- [ ] More audio effects.
