@@ -4,6 +4,10 @@ import utilidades
 import spotipy
 import os, random, re, json, traceback, time, configparser, math
 from discord.ext import commands, tasks
+from pydub import AudioSegment
+from io import BytesIO
+from shazamio import Shazam
+import subprocess
 from pytube import Playlist, Search, YouTube
 from yt_dlp import YoutubeDL
 from concurrent.futures import ThreadPoolExecutor
@@ -95,7 +99,7 @@ YDL_OPTS = {
     'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
 }
 EXTRA_FORMATS = {'Audio_Only', '160p', '360p', '480p', '720p60', '1080p60', '0', 'hls_mp3_128', 'http_mp3_128',
-                 'hls_opus_64', 'hls-250p', 'hls-360p', 'hls-480p', 'mp4-low', 'mp4-high'}
+                 'hls_opus_64', 'hls', 'mp4'}
 
 ## NORMAL FUNCTIONS ##
 def get_sp_id(url):
@@ -121,8 +125,8 @@ def get_video_info(video, gid):
 def create_options_file(file_path):
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
-            json.dump({"search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
-                       "custom_prefixes": DEFAULT_PREFIXES}, f)
+            json.dump({ "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
+                       "custom_prefixes": DEFAULT_PREFIXES, "restricted_to": "ALL_CHANNELS" }, f)
 
 
 def create_perms_file(ctx, file_path):
@@ -178,6 +182,7 @@ def fetch_info(result):
             stream_url = streaming_data['hlsManifestUrl']
             vtype = 'live'
         except:  # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
+            if SKIP_PRIVATE_SEARCH: return None
             try:
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(f"https://www.youtube.com/watch?v={result.video_id}", download=False)
@@ -186,26 +191,28 @@ def fetch_info(result):
                         stream_url = info['formats'][0]['url']
                     else:
                         vtype = 'video'
+                    stream_url = None
                     for formats in info['formats']:
-                        if formats['format_id'] in {'233', '234'}:
+                        fid = formats['format_id'].split("-")[0]
+                        if fid in {'233', '234'}:
                             stream_url = formats['url']
                             break
-                        elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
+                        elif fid in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
-                        else:
-                            try:
-                                stream_url = formats['url']
-                                break
-                            except:
-                                return None
+                        elif fid in EXTRA_FORMATS:
+                            stream_url = formats['url']
+                            break
+                    if not stream_url:
+                        stream_url = info['formats'][0]['url']
             except:
                 return None
     return {
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+        # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
 
@@ -220,16 +227,17 @@ def info_from_url(query, is_url=True, not_youtube=False):
     url = query if is_url else f"https://www.youtube.com/watch?v={query}"
     try:
         result = YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
-        streaming_data = result.vid_info['streamingData']
-    except: not_youtube = True
+    except:
+        not_youtube = True
     vtype = 'video'
     try:
-
+        streaming_data = result.vid_info['streamingData']
         stream_url = get_stream_url(streaming_data['formats'], itags=ITAGS_LIST)  # get best stream url if possible
         if not stream_url:
             stream_url = get_stream_url(streaming_data['adaptiveFormats'], itags=ITAGS_LIST)  # get best stream url if possible
     except:
         try:
+            streaming_data = result.vid_info['streamingData']
             stream_url = streaming_data['hlsManifestUrl']
             vtype = 'live'
         except: # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
@@ -241,16 +249,20 @@ def info_from_url(query, is_url=True, not_youtube=False):
                         stream_url = info['formats'][0]['url']
                     else:
                         vtype = 'video'
+                    stream_url = None
                     for formats in info['formats']:
-                        if formats['format_id'] in {'233', '234'}:
+                        fid = formats['format_id'].split("-")[0]
+                        if fid in {'233', '234'}:
                             stream_url = formats['url']
                             break
-                        elif formats['format_id'].replace("-drc", "") in {'139', '249', '250', '140', '251'}:
+                        elif fid in {'139', '249', '250', '140', '251'}:
                             stream_url = formats['url']
                             break
-                        elif formats['format_id'] in EXTRA_FORMATS:
+                        elif fid in EXTRA_FORMATS:
                             stream_url = formats['url']
                             break
+                        if not stream_url:
+                            stream_url = info['formats'][0]['url']
             except:
                 stream_url = None
     if not_youtube:
@@ -268,14 +280,15 @@ def info_from_url(query, is_url=True, not_youtube=False):
             'obj': None, 'title': title, 'channel': channel, 'views': views,
             'length': dur, 'id': None, 'thumbnail_url': thumb,
             'url': url, 'stream_url': stream_url, 'channel_url': 'no_image', 'type': vtype,
-            'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0}
-            # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+            'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+            # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
         }
     return {
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+        # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
 
@@ -293,6 +306,15 @@ def check_perms(ctx, perm):
     if perm not in user_perms[str(ctx.author.id)]:
         return False
     return True
+
+
+def get_channel_restriction(ctx):
+    file_path = f'options_{ctx.guild.id}.json'
+    create_options_file(file_path)
+    with open(file_path, 'r') as f:
+        options = json.load(f)
+    return (ctx, True) if options['restricted_to'] == 'ALL_CHANNELS' \
+        else (discord.utils.get(ctx.guild.channels, name=options['restricted_to']), False)
 
 
 ## ASYNC FUNCTIONS ##
@@ -319,7 +341,6 @@ async def choice(ctx, embed, reactions):
 
 async def play_next(ctx):
     global dict_current_song, loop_mode, dict_queue
-    voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
     gid = str(ctx.guild.id)
     dict_queue.setdefault(gid, list())
     dict_current_song.setdefault(gid, 0)
@@ -363,6 +384,24 @@ async def update_level_info(ctx, user_id, xp_add):
             json.dump(datos, f)
     except:
         traceback.print_exc()
+
+
+async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
+    if start > total_length-10: start -= 10
+    start = max(0, start)
+    clip_length = min(max(1, clip_length), 59)
+    response = requests.get(url)
+    response.raise_for_status()
+    try:
+        AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(r'downloads/shazam.mp3', format='mp3')
+    except:
+        start_time = '00:00:00' if vtype == 'live' else '00:'*(start < 3600)+convert_seconds(start)
+        end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:'*(start+10 < 3600)+convert_seconds(start+clip_length)
+        subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    shazam = Shazam()
+    out = await shazam.recognize(r'downloads/shazam.mp3')
+    if not out or not out['matches']: return None
+    return out['track']
 
 
 bot = commands.Bot(command_prefix="DEF_PREFIX", activity=activity, intents=intents, help_command=None,
@@ -538,8 +577,9 @@ async def vote_skip():
 @bot.command(name='help', aliases=['h'])
 async def help(ctx, comando=None):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_help"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if comando:
             if comando in ['help', 'h']:
@@ -615,7 +655,7 @@ async def help(ctx, comando=None):
             elif comando in ['lang', 'change_lang', 'language', 'change_language']:
                 command_text = command_desc_lang
             else:
-                await ctx.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             embed = discord.Embed(
                 title=f"Command: {comando}",
@@ -635,7 +675,7 @@ async def help(ctx, comando=None):
                     ['`{}`'.format(item) for item in options['custom_prefixes']])),
                 color=EMBED_COLOR
             )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -643,8 +683,9 @@ async def help(ctx, comando=None):
 @bot.command(name='perms', aliases=['prm'])
 async def perms(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_perms"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         permissions = ctx.guild.me.guild_permissions
         true_permissions = {name: value for name, value in permissions if value}
@@ -654,7 +695,7 @@ async def perms(ctx):
             description=formatted_permissions,
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed)
+        await channel_to_send.send(embed=embed)
     except:
         traceback.print_exc()
 
@@ -662,8 +703,9 @@ async def perms(ctx):
 @bot.command(name='add_perm', aliases=[])
 async def add_perm(ctx, name, perm):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_add_perms"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         file_path = f'user_perms_{ctx.guild.id}.json'
         create_perms_file(ctx, file_path)
@@ -683,11 +725,11 @@ async def add_perm(ctx, name, perm):
                     user_perms[str(member.id)] = AVAILABLE_PERMS.copy()
                     P = 2
                 else:
-                    await ctx.send(invalid_perm.replace("%perm", perm))
+                    await channel_to_send.send(invalid_perm.replace("%perm", perm))
                     P = 0
                     break
-            if P == 1: await ctx.send(perm_added_everyone.replace("%perm", perm))
-            if P == 2: await ctx.send(all_perms_everyone)
+            if P == 1: await channel_to_send.send(perm_added_everyone.replace("%perm", perm))
+            if P == 2: await channel_to_send.send(all_perms_everyone)
         else:
             P = False
             for member in server.members:
@@ -702,18 +744,18 @@ async def add_perm(ctx, name, perm):
                             user_perms[str(member.id)] = DEFAULT_USER_PERMS
                     if perm in AVAILABLE_PERMS:
                         if perm in user_perms[str(member.id)]:
-                            await ctx.send(perm_already_added.replace("%name", member.name).replace("%perm", perm))
+                            await channel_to_send.send(perm_already_added.replace("%name", member.name).replace("%perm", perm))
                             break
                         user_perms[str(member.id)].append(perm)
-                        await ctx.send(perm_added.replace("%perm", perm).replace("%name", member.name))
+                        await channel_to_send.send(perm_added.replace("%perm", perm).replace("%name", member.name))
                     elif perm in ["ALL", "*"]:
                         user_perms[str(member.id)] = AVAILABLE_PERMS.copy()
-                        await ctx.send(all_perms_added.replace("%name", member.name))
+                        await channel_to_send.send(all_perms_added.replace("%name", member.name))
                     else:
-                        await ctx.send(invalid_perm.replace("%perm", perm))
+                        await channel_to_send.send(invalid_perm.replace("%perm", perm))
                         break
             if not P:
-                await ctx.send(couldnt_find_user.replace("%name", name))
+                await channel_to_send.send(couldnt_find_user.replace("%name", name))
 
         with open(file_path, 'w') as f:
             json.dump(user_perms, f)
@@ -724,8 +766,9 @@ async def add_perm(ctx, name, perm):
 @bot.command(name='del_perm', aliases=[])
 async def del_perm(ctx, name, perm):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_del_perms"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         file_path = f'user_perms_{ctx.guild.id}.json'
         create_perms_file(ctx, file_path)
@@ -742,10 +785,10 @@ async def del_perm(ctx, name, perm):
                 if perm in AVAILABLE_PERMS:
                     if perm in user_perms[str(member.id)]: user_perms[str(member.id)].remove(perm)
                 else:
-                    await ctx.send(invalid_perm.replace("%perm", perm))
+                    await channel_to_send.send(invalid_perm.replace("%perm", perm))
                     P = False
                     break
-            if P: await ctx.send(perm_del_everyone.replace("%perm", perm))
+            if P: await channel_to_send.send(perm_del_everyone.replace("%perm", perm))
         else:
             P = False
             for member in server.members:
@@ -755,15 +798,15 @@ async def del_perm(ctx, name, perm):
                                                                        ADMIN_PERMS if member.guild_permissions.administrator else DEFAULT_USER_PERMS)
                     if perm in AVAILABLE_PERMS:
                         if perm not in user_perms[str(member.id)]:
-                            await ctx.send(perm_not_added.replace("%name", member.name).replace("%perm", perm))
+                            await channel_to_send.send(perm_not_added.replace("%name", member.name).replace("%perm", perm))
                             break
                         user_perms[str(member.id)].remove(perm)
-                        await ctx.send(perm_removed.replace("%perm", perm).replace("%name", member.name))
+                        await channel_to_send.send(perm_removed.replace("%perm", perm).replace("%name", member.name))
                     else:
-                        await ctx.send(invalid_perm.replace("%perm", perm))
+                        await channel_to_send.send(invalid_perm.replace("%perm", perm))
                         break
             if not P:
-                await ctx.send(couldnt_find_user.replace("%name", name))
+                await channel_to_send.send(couldnt_find_user.replace("%name", name))
 
         with open(file_path, 'w') as f:
             json.dump(user_perms, f)
@@ -774,18 +817,19 @@ async def del_perm(ctx, name, perm):
 @bot.command(name='available_perms', aliases=[])
 async def available_perms(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_available_perms"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title=available_perms_title,
             description=f"{', '.join(['`{}`'.format(item) for item in AVAILABLE_PERMS])}",
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         embed.title = default_perms_title
         embed.description = f"{', '.join(['`{}`'.format(item) for item in DEFAULT_USER_PERMS])}"
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -793,8 +837,9 @@ async def available_perms(ctx):
 @bot.command(name='fastplay', aliases=['fp'])
 async def fastplay(ctx, *, url):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_fastplay"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         await play(ctx, url=url, search=False)
     except:
@@ -804,22 +849,23 @@ async def fastplay(ctx, *, url):
 @bot.command(name='rewind', aliases=['rw', 'r', 'back'])
 async def rewind(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_rewind"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global loop_mode, go_back
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, [])
         queue = dict_queue[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client is None or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
@@ -833,25 +879,26 @@ async def rewind(ctx):
 @bot.command(name='join', aliases=['connect'])
 async def join(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_join"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return None
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         channel = ctx.author.voice.channel
         if voice_client is not None:
             if channel != voice_client.channel:
-                await ctx.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             elif voice_client.is_connected():
-                await ctx.send(random.choice(already_connected_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(already_connected_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         await channel.connect()
         change_active(ctx, mode='a')
         txt = random.choice(entering_texts) + channel.name + "."
-        await ctx.send(txt, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(txt, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -859,27 +906,28 @@ async def join(ctx):
 @bot.command(name='leave', aliases=['l', 'dis', 'disconnect', 'd'])
 async def leave(ctx, ignore=False):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         global loop_mode, dict_current_song, dict_current_time, disable_play
         if not ignore:
             if not check_perms(ctx, "use_leave"):
-                await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             if not ctx.author.voice:
-                await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             bot_vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
             if not bot_vc:
-                await ctx.send(random.choice(not_connected_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(not_connected_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             if ctx.author.voice.channel != bot_vc.channel:
-                await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if loop_mode[gid] != "off": await loop(ctx, 'off')
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         try:
             if voice_client is not None and voice_client.is_connected():
@@ -901,11 +949,12 @@ async def leave(ctx, ignore=False):
 @bot.command(name='np', aliases=['info', 'nowplaying', 'playing'])
 async def info(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_info"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not SPOTIFY_SECRET or not SPOTIFY_ID:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and voice_client.is_playing():
@@ -925,9 +974,9 @@ async def info(ctx):
                     .replace("%duration", str(duracion)).replace("%bar", utilidades.get_bar(int(vid['length']), dict_current_time[gid])),
                 color=EMBED_COLOR
             )
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         else:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -935,79 +984,86 @@ async def info(ctx):
 @bot.command(name='ping')
 async def ping(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_ping"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        await ctx.send(f"Pong! {round(bot.latency * 1000)}ms", reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(f"Pong! {round(bot.latency * 1000)}ms", reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
 
 @bot.command(name='options', aliases=['cfg', 'config', 'opt'])
-async def options(ctx, option="", *, query=""):
+async def options(ctx, option="", *, query="", ignore=False):
     try:
-        if not check_perms(ctx, "use_options"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
-        embed = discord.Embed(
-            title="",
-            description="",
-            color=EMBED_COLOR
-        )
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not ignore:
+            if not check_perms(ctx, "use_options"):
+                await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            embed = discord.Embed(
+                title="",
+                description="",
+                color=EMBED_COLOR
+            )
 
         file_path = f'options_{ctx.guild.id}.json'
         create_options_file(file_path)
 
         with open(file_path, 'r') as f:
             options = json.load(f)
-        search_limit, recomm_limit, custom_prefixes = options['search_limit'], options['recomm_limit'], options[
-            'custom_prefixes']
+        search_limit, recomm_limit, custom_prefixes, restricted_to = options['search_limit'], options['recomm_limit'],\
+                                                                  options['custom_prefixes'], options['restricted_to']
         original = search_limit, recomm_limit, custom_prefixes
-        if not option:
-            embed.title = config_title
-            embed.description = config_desc.replace("%search_limit", str(search_limit)).replace("%recomm_limit",
-                                                                                                str(recomm_limit)).replace(
-                "%custom_prefixes", ' '.join(custom_prefixes))
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
-        elif option in ["restart", "default"]:
-            query = 10
-        elif query == "":
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
-        try:
-            query = float(query)
-            if query > 25: query = 25
-            if query < 0: query = 0
-        except:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
-            return
-        if option == "search_limit":
-            options['search_limit'], p = int(query), 0
-        elif option == "recomm_limit":
-            options['recomm_limit'], p = int(query), 1
-        elif option in ["restart", "default"]:
-            options['search_limit'], options['recomm_limit'], options[
-                'custom_prefixes'] = DEFAULT_SEARCH_LIMIT, DEFAULT_RECOMMENDATION_LIMIT, DEFAULT_PREFIXES
+        if not ignore:
+            if not option:
+                embed.title = config_title
+                embed.description = config_desc.replace("%search_limit", str(search_limit))\
+                    .replace("%recomm_limit", str(recomm_limit)).replace("%custom_prefixes", ' '.join(custom_prefixes))\
+                    .replace("%restricted_to", str(restricted_to))
+                await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            elif option in ["restart", "default"]:
+                query = 10
+            elif query == "":
+                await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            try:
+                query = min(max(float(query), 0), 25)
+            except:
+                await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            if option == "search_limit":
+                options['search_limit'], p = int(query), 0
+            elif option == "recomm_limit":
+                options['recomm_limit'], p = int(query), 1
+            elif option in ["restart", "default"]:
+                options['search_limit'], options['recomm_limit'], options[
+                    'custom_prefixes'] = DEFAULT_SEARCH_LIMIT, DEFAULT_RECOMMENDATION_LIMIT, DEFAULT_PREFIXES
+            else:
+                await channel_to_send.send(random.choice(prefix_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+        elif option == "restricted_to":
+            options['restricted_to'] = query
         else:
-            await ctx.send(random.choice(prefix_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
         with open(file_path, 'w') as f:
             json.dump(options, f)
-        embed.title = f"{config_title}: `{option}`"
-        if option in ["restart", "default", "reset"]:
-            embed.description = config_default.replace("%sl", str(original[0])).replace("%rl",
-                                                                                        str(original[1])).replace(
-                "%cust_p", ' '.join(original[2])) \
-                .replace("%def_sl", str(DEFAULT_SEARCH_LIMIT)).replace("%def_rl",
-                                                                       str(DEFAULT_RECOMMENDATION_LIMIT)).replace(
-                "%def_cust_p", ' '.join(DEFAULT_PREFIXES))
-        else:
-            embed.description = config_changed.replace("%option", option).replace("%original",
-                                                                                  str(original[p])).replace("%newvalue",
-                                                                                                            str(options[
-                                                                                                                    option]))
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        if not ignore:
+            embed.title = f"{config_title}: `{option}`"
+            if option in ["restart", "default", "reset"]:
+                embed.description = config_default.replace("%sl", str(original[0])).replace("%rl",
+                                                                                            str(original[1])).replace(
+                    "%cust_p", ' '.join(original[2])) \
+                    .replace("%def_sl", str(DEFAULT_SEARCH_LIMIT)).replace("%def_rl",
+                                                                           str(DEFAULT_RECOMMENDATION_LIMIT)).replace(
+                    "%def_cust_p", ' '.join(DEFAULT_PREFIXES))
+            else:
+                embed.description = config_changed.replace("%option", option).replace("%original",
+                                                                                      str(original[p])).replace("%newvalue",
+                                                                                                                str(options[
+                                                                                                                        option]))
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1015,11 +1071,12 @@ async def options(ctx, option="", *, query=""):
 @bot.command(name='search', aliases=['find'])
 async def search(ctx, tipo, *, query=""):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_search"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not tipo:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not query: query = tipo
         embed = discord.Embed(
@@ -1037,17 +1094,17 @@ async def search(ctx, tipo, *, query=""):
                 results = search_youtube(query, max_results=options['search_limit'])
             except:
                 traceback.print_exc()
-                await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             embed.set_thumbnail(url=results[0]['thumbnail_url'])
             for vid in results:
                 texto = f"➤ [{vid['title']}]({vid['url']})\n"
                 embed.add_field(name="", value=texto, inline=False)
             embed.title = youtube_search_title
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         elif tipo.lower() in ['spotify', 'sp', 'spotipy', 'spoti', 'spoty']:
             if not SPOTIFY_SECRET or not SPOTIFY_ID:
-                await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             results = utilidades.spotify_search(query, lim=options['search_limit'])
             embed.set_thumbnail(url=results[0]['image_url'])
@@ -1056,7 +1113,7 @@ async def search(ctx, tipo, *, query=""):
                 texto = spotify_search_desc.replace("%name", name).replace("%url", url).replace("%artist", artist)
                 embed.add_field(name="", value=texto, inline=False)
             embed.title = spotify_search_title
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1064,11 +1121,12 @@ async def search(ctx, tipo, *, query=""):
 @bot.command(name='genre', aliases=['genres', 'recomm', 'recommendation', 'recommendations'])
 async def genre(ctx, *, query=""):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_genre"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not SPOTIFY_SECRET or not SPOTIFY_ID:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title="",
@@ -1094,7 +1152,7 @@ async def genre(ctx, *, query=""):
             embed.title = available_genres
         else:
             if not results[0]:
-                await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             songs = results[0]
             for result in songs:
@@ -1103,7 +1161,7 @@ async def genre(ctx, *, query=""):
                 embed.add_field(name="", value=texto, inline=False)
             embed.title = genre_search_title.replace("%genre", results[2].replace('-', ' ').title())
             embed.set_thumbnail(url=result['image_url'])
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1112,25 +1170,26 @@ async def genre(ctx, *, query=""):
 async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False):
     global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not check_perms(ctx, "use_play"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         if disable_play: return
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not url:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_channel = ctx.author.voice.channel
         if not voice_channel.permissions_for(ctx.me).connect:
-            await ctx.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client:
             if voice_client.channel != voice_channel:
-                await ctx.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             if not voice_client.is_connected():
                 await voice_channel.connect()
@@ -1152,12 +1211,12 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if command in ['1', 'true', 'si', 'y', 'yes', 'gif']: gif = True
                 if command in ['force', 'forceplay', 'force_play', 'play']: force_play = True
             if not is_url(url):
-                search_message = await ctx.send(searching_text)
+                search_message = await channel_to_send.send(searching_text)
                 results = search_youtube(url, max_results=MAX_SEARCH_SELECT if search else 1)
 
                 if not results:
                     await search_message.delete()
-                    await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                    await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                     return
                 num_pages = -(-len(results)//5) # ceil function without math module lol
                 current_page = 1
@@ -1187,7 +1246,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     if USE_BUTTONS:
                         button_choice[gid] = -1
                         menu = SongChooseMenu(gid)
-                        message = await ctx.send(embed=choice_embed, view=menu, reference=ctx.message if REFERENCE_MESSAGES else None)
+                        message = await channel_to_send.send(embed=choice_embed, view=menu, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         try:
                             def check(interaction: discord.interactions.Interaction):
                                 return interaction.user.id == ctx.author.id
@@ -1216,7 +1275,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                                     new_results_embed.add_field(name="", value=texto, inline=False)
                                 await message.edit(embed=new_results_embed)
                         except asyncio.TimeoutError:
-                            await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                            await channel_to_send.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                             await message.delete()
                             disable_play = False
                             return
@@ -1226,7 +1285,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         disable_play = False
                         await message.delete()
                         if button_choice[gid] < 0:
-                            await ctx.send(random.choice(cancel_selection_texts))
+                            await channel_to_send.send(random.choice(cancel_selection_texts))
                             if not members_left.is_running(): members_left.start()
                             return
                         if button_choice[gid] == 5:
@@ -1234,11 +1293,11 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         if button_choice[gid] == 9:
                             links = results[(5 * (current_page - 1)):(5 * current_page)].copy()
                             all_chosen = True
-                            await ctx.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES else None)
+                            await channel_to_send.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         else:
                             video_select = results[button_choice[gid]+5*(current_page-1)]
                             if voice_client:
-                                await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
+                                await channel_to_send.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                             else:
                                 return
                     else:
@@ -1247,12 +1306,12 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         emoji_choice = await choice(ctx, choice_embed, emojis_reactions)
                         disable_play = False
                         if not emoji_choice or emoji_choice == '❌':
-                            await ctx.send(random.choice(cancel_selection_texts))
+                            await channel_to_send.send(random.choice(cancel_selection_texts))
                             if not members_left.is_running(): members_left.start()
                             return
                         video_select = results[emoji_to_number.get(emoji_choice, None) - 1]
                         if voice_client:
-                            await ctx.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
+                            await channel_to_send.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         else:
                             return
                 else:
@@ -1262,7 +1321,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 video_select = {
                     'obj': None, 'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None,
                     'url': url, 'type': None, 'stream_url': None, 'views': None, 'channel_url': None,
-                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                    # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 }
         end = False
         if not all_chosen:
@@ -1280,7 +1340,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         links = [video_select]
                 except:
                     if not force_play:
-                        await ctx.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                        await channel_to_send.send(random.choice(invalid_link_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         return
                     else:
                         links = [url]
@@ -1301,7 +1361,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if not failed_check:
                     links[0] = info_from_url(links[0])
                     if len(links) > PLAYLIST_MAX_LIMIT:
-                        await ctx.send(playlist_max_reached.replace("%pl_length", str(len(links))).replace("%over", str(abs(
+                        await channel_to_send.send(playlist_max_reached.replace("%pl_length", str(len(links))).replace("%over", str(abs(
                             PLAYLIST_MAX_LIMIT - len(links)))).replace("%discarded", str(abs(PLAYLIST_MAX_LIMIT - len(links)))))
                         links = links[:PLAYLIST_MAX_LIMIT]
                     embed_playlist = discord.Embed(
@@ -1349,7 +1409,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                                        # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
                 album = sp.album(vid_id)
                 tracks = album['tracks']['items']
@@ -1358,7 +1419,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     album['tracks'] = sp.next(album['tracks'])
                     tracks.extend(album['tracks']['items'])
                 if len(tracks) > SPOTIFY_LIMIT:
-                    await ctx.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
+                    await channel_to_send.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
                         SPOTIFY_LIMIT - len(tracks)))).replace("%discarded",
                                                                    str(abs(SPOTIFY_LIMIT - len(tracks)))))
                     tracks = tracks[:SPOTIFY_LIMIT]
@@ -1385,7 +1446,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                                        # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
                 playlist = sp.playlist(vid_id)
                 tracks = playlist['tracks']['items']
@@ -1394,7 +1456,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     playlist['tracks'] = sp.next(playlist['tracks'])
                     tracks.extend(playlist['tracks']['items'])
                 if len(tracks) > SPOTIFY_LIMIT:
-                    await ctx.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
+                    await channel_to_send.send(playlist_max_reached.replace("%pl_length", str(len(tracks))).replace("%over", str(abs(
                         SPOTIFY_LIMIT - len(tracks)))).replace("%discarded", str(abs(SPOTIFY_LIMIT - len(tracks)))))
                     tracks = tracks[:SPOTIFY_LIMIT]
                 with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
@@ -1410,17 +1472,16 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 else:
                     links = [video_select]
             for video in not_loaded_list:
-                await ctx.send(couldnt_load_song.replace("%title", video), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(couldnt_load_song.replace("%title", video), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             if end: return
         else:
             vtype = 'video'
-
         try: vid = links[0].copy()
         except: vid = links[0]
         if vtype != 'raw_audio':
             if vid['length'] > MAX_VIDEO_LENGTH:
-                await ctx.send(video_max_duration.replace("%video_limit", str(convert_seconds(MAX_VIDEO_LENGTH))),
-                               reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(video_max_duration.replace("%video_limit", str(convert_seconds(MAX_VIDEO_LENGTH))),
+                               reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 await skip(ctx)
                 return
             titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
@@ -1451,15 +1512,15 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 embed2.set_thumbnail(url=img)
             if vid['stream_url']:
                 if vtype == 'playlist':
-                    await ctx.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES else None)
+                    await channel_to_send.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 elif voice_client is not None and voice_client.is_playing():
-                    await ctx.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES else None)
+                    await channel_to_send.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 else:
                     dict_current_time[gid] = 0
-                    await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+                    await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
             else:
-                await ctx.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         else:
             dict_current_time[gid] = 0
@@ -1468,7 +1529,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 description=raw_audio_desc.replace("%name", ctx.author.global_name).replace("%ch_name", voice_client.channel.name),
                 color=EMBED_COLOR
             )
-            await ctx.send(embed=raw_embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=raw_embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         if not update_current_time.is_running(): update_current_time.start()
         if append:
             dict_queue[gid] = dict_queue.setdefault(gid, list())
@@ -1477,7 +1538,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 for video in links: dict_queue[gid].append({
                     'obj': None, 'title': 'Raw audio file', 'channel': 'Someone', 'views': 'No views',
                     'length': 0, 'id': 'none', 'thumbnail_url': 'no_image', 'url': video, 'stream_url': video,
-                    'channel_url': 'no_image', 'type': 'raw_audio', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0 } # pitch as freq multiplier, speed as tempo multiplier, volume in dB
+                    'channel_url': 'no_image', 'type': 'raw_audio',
+                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                    # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 })
             else:
                 for video in links: dict_queue[gid].append(video)
@@ -1501,14 +1564,15 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         traceback.print_exc()
     #except YoutubeDLError as e:
     #    traceback.print_exc()
-    #    await ctx.send(random.choice(restricted_video_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+    #    await channel_to_send.send(random.choice(restricted_video_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.command(name='level', aliases=['lvl'])
 async def level(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_level"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         id = ctx.author.id
         level_file_path = f'level_data_{ctx.guild.id}.json'
@@ -1526,7 +1590,7 @@ async def level(ctx):
                 "%next_xp", str(next_xp)),
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1534,11 +1598,12 @@ async def level(ctx):
 @bot.command(name='restart_levels', aliases=['rl'])
 async def restart_levels(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         level_file_path = f'level_data_{ctx.guild.id}.json'
         if not os.path.exists(level_file_path):
             pass
         elif not check_perms(ctx, "use_restart_levels"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         server = ctx.guild
         datos = list()
@@ -1560,12 +1625,13 @@ async def restart_levels(ctx):
 @bot.command(name="remove", aliases=['rm'])
 async def remove(ctx, index):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_remove"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_current_song, dict_current_time
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
@@ -1574,20 +1640,20 @@ async def remove(ctx, index):
         current_song = dict_current_song[gid]
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is None or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         try:
             index = int(index) - 1
             if not 0 <= index < len(queue): raise Exception
         except:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[index]
         queue.pop(index)
-        await ctx.send(removed_from_queue.replace("%title", vid['title']), reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(removed_from_queue.replace("%title", vid['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         dict_current_time[gid] = 0
         if index == current_song:
             dict_current_song[gid] = current_song - 2 if current_song > 1 else -1
@@ -1601,12 +1667,13 @@ async def remove(ctx, index):
 @bot.command(name='forward', aliases=['fw', 'forwards', 'bw', 'backward', 'backwards'])
 async def forward(ctx, time):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_forward"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_current_time, seek_called, dict_queue, dict_current_song
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
@@ -1615,14 +1682,14 @@ async def forward(ctx, time):
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if not voice_client or not voice_client.is_playing() or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
         if vid['type'] == 'live':
-            await ctx.send(cannot_change_time_live.replace("%command", "forward/backward"), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(cannot_change_time_live.replace("%command", "forward/backward"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if str(time).replace('-', '').replace('+', '').isnumeric():
             time = int(time)
@@ -1657,21 +1724,22 @@ async def forward(ctx, time):
             description=f"{utilidades.get_bar(int(vid['length']), dict_current_time[gid])}",
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
-        await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.command(name='seek', aliases=['sk'])
 async def seek(ctx, time):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_seek"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_current_time, seek_called, dict_queue, dict_current_song
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
@@ -1680,14 +1748,14 @@ async def seek(ctx, time):
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not voice_client or not voice_client.is_playing() or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
         if vid['type'] == 'live':
-            await ctx.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if str(time).isnumeric():
             time = int(time)
@@ -1716,37 +1784,38 @@ async def seek(ctx, time):
             description=f"{utilidades.get_bar(int(vid['length']), dict_current_time[gid])}",
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
     except:
         traceback.print_exc()
-        await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.command(name='loop', aliases=['lp'])
 async def loop(ctx, mode="change"):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_loop"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global loop_mode
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
         if mode not in ['queue', 'all', 'shuffle', 'random', 'one', 'off']:
-            await ctx.send(not_loop_mode.replace("%mode", str(mode)),
-                           reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(not_loop_mode.replace("%mode", str(mode)),
+                           reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         loop_mode[gid] = str(mode)
-        await ctx.send(loop_mode_changed.replace("%loop", loop_mode[gid]) if loop_mode[gid] != 'off' else loop_disable,
-                       reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(loop_mode_changed.replace("%loop", loop_mode[gid]) if loop_mode[gid] != 'off' else loop_disable,
+                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1754,22 +1823,23 @@ async def loop(ctx, mode="change"):
 @bot.command(name='shuffle', aliases=['sf', 'random'])
 async def shuffle(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_shuffle"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_current_song, dict_current_time
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not voice_client or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client.is_playing(): voice_client.pause()
         dict_current_song[gid] = -1
@@ -1784,8 +1854,9 @@ async def shuffle(ctx):
 @bot.command(name='queue', aliases=['q'])
 async def cola(ctx, silent=False):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_queue"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_queue, dict_current_song
         gid = str(ctx.guild.id)
@@ -1794,7 +1865,7 @@ async def cola(ctx, silent=False):
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if not queue:
-            await ctx.send(random.choice(no_queue_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_queue_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         titulos, i, titlelen = [], 1, 0
         with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
@@ -1817,7 +1888,7 @@ async def cola(ctx, silent=False):
                 description=titletext,
                 color=EMBED_COLOR
             )
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1825,21 +1896,22 @@ async def cola(ctx, silent=False):
 @bot.command(name='pause', aliases=['stop'])
 async def pause(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_pause"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not voice_client or not voice_client.is_playing() or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client.pause()
         if update_current_time.is_running(): update_current_time.stop()
@@ -1850,22 +1922,23 @@ async def pause(ctx):
 @bot.command(name='resume', aliases=[])
 async def resume(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_resume"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_queue
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         queue = dict_queue[gid]
         if voice_client is None or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client.resume()
         if not update_current_time.is_running(): update_current_time.start()
@@ -1876,28 +1949,29 @@ async def resume(ctx):
 @bot.command(name='skip', aliases=['s', 'next'])
 async def skip(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         global vote_skip_dict, loop_mode, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
         gid = str(ctx.guild.id)
         vote_skip_dict.setdefault(gid, -1)
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if vote_skip_dict[gid] == -1:
             if voice_client is None:
-                await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             if not check_perms(ctx, "use_skip"):
                 if not check_perms(ctx, "use_vote_skip"):
-                    await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                    await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                     return
                 members = voice_client.channel.members
                 member_amount = len(members) - 1
                 majority = round(member_amount / 2)
-                vote_message = await ctx.send(vote_skip_text.replace("%num", str(majority)))
+                vote_message = await channel_to_send.send(vote_skip_text.replace("%num", str(majority)))
                 await vote_message.add_reaction("❌")
                 await vote_message.add_reaction("✅")
                 await asyncio.sleep(1)
@@ -1919,29 +1993,30 @@ async def skip(ctx):
 @bot.command(name='goto')
 async def goto(ctx, num):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_goto"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_queue, dict_current_song
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, [])
         queue = dict_queue[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client is None or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         num = int(num)
         if 0 < num <= len(queue):
             dict_current_song[gid] = num - 2
             await skip(ctx)
         else:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1949,25 +2024,27 @@ async def goto(ctx, num):
 @bot.command(name="avatar", aliases=['profile', 'pfp'])
 async def avatar(ctx):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_avatar"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title=profile_title.replace("%name", ctx.author.global_name),
             color=EMBED_COLOR
         )
         embed.set_image(url=ctx.author.avatar.url)
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
-        await ctx.send(random.choice(avatar_error_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(random.choice(avatar_error_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         traceback.print_exc()
 
 
 @bot.command(name='steam')
 async def steam(ctx, name):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_steam"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         name = name.lower()
         url = f'https://steamcommunity.com/id/{name}'
@@ -1978,10 +2055,10 @@ async def steam(ctx, name):
         )
         imgurl = utilidades.get_steam_avatar(url)
         if not imgurl:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed.set_image(url=imgurl)
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1989,35 +2066,37 @@ async def steam(ctx, name):
 @bot.command(name='chatgpt', aliases=['chat', 'gpt'])
 async def chatgpt(ctx, *, msg):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_chatgpt"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not OPENAI_KEY:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title=chatgpt_title,
             description=f"{utilidades.chatgpt(msg, OPENAI_KEY, language)}",
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
-        await ctx.send(random.choice(no_api_credits_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(random.choice(no_api_credits_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.command(name='lyrics', aliases=['lyric'])
 async def lyrics(ctx, *, query=None):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_lyrics"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not SPOTIFY_SECRET or not SPOTIFY_ID or not GENIUS_ACCESS_TOKEN:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if query is None and voice_client is None:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not query:
             gid = str(ctx.guild.id)
@@ -2031,7 +2110,7 @@ async def lyrics(ctx, *, query=None):
         artista = utilidades.get_spotify_artist(titulo, is_song=True)
         cancion = utilidades.get_spotify_song(titulo)
         if not all([artista, cancion]):
-            await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title=lyrics_title,
@@ -2040,14 +2119,14 @@ async def lyrics(ctx, *, query=None):
         )
         lyrics = utilidades.get_lyrics(titulo, (artista, cancion))
         if not all(lyrics):
-            await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         if len(lyrics) > 9000:
-            await ctx.send(random.choice(lyrics_too_long_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(lyrics_too_long_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         for i in range(0, len(lyrics), 2000):
-            await ctx.send(lyrics[i:i + 2000], reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(lyrics[i:i + 2000], reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except Exception as e:
         traceback.print_exc()
 
@@ -2055,14 +2134,15 @@ async def lyrics(ctx, *, query=None):
 @bot.command(name='songs', aliases=['song'])
 async def songs(ctx, number=None, *, artista=""):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_songs"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not SPOTIFY_SECRET or not SPOTIFY_ID:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if number is None and artista == "":
@@ -2076,7 +2156,7 @@ async def songs(ctx, number=None, *, artista=""):
                 number = 10
                 m = True
             else:
-                await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+                await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         else:
             try:
@@ -2091,7 +2171,7 @@ async def songs(ctx, number=None, *, artista=""):
         canciones = utilidades.get_top_songs(artista, number)
 
         if not canciones or not artista:
-            await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         embed = discord.Embed(
             title=top_songs_title.replace("%number", str(number)).replace("%artist", artista),
@@ -2099,7 +2179,7 @@ async def songs(ctx, number=None, *, artista=""):
             color=EMBED_COLOR
         )
         embed.set_thumbnail(url=utilidades.get_artist_image_url(artista))
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except Exception as e:
         traceback.print_exc()
 
@@ -2107,14 +2187,15 @@ async def songs(ctx, number=None, *, artista=""):
 @bot.command(name='chords', aliases=[])
 async def chords(ctx, *, query=""):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_chords"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not SPOTIFY_ID or not SPOTIFY_SECRET:
-            await ctx.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not query and voice_client is not None and voice_client.is_playing():
@@ -2125,7 +2206,7 @@ async def chords(ctx, *, query=""):
             current_song = dict_current_song[gid]
             query = queue[current_song]['title']
         elif not query:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         artista, cancion = utilidades.get_artist_and_song(query)
 
@@ -2133,7 +2214,7 @@ async def chords(ctx, *, query=""):
         if not msg:
             msg = await utilidades.search_cifraclub(query)
         if not msg:
-            await ctx.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         for i in range(0, len(msg), 4000):
             embed = discord.Embed(
@@ -2142,7 +2223,7 @@ async def chords(ctx, *, query=""):
                 color=EMBED_COLOR
             )
             if i == 0: embed.title = chords_title.replace("%song", cancion).replace("%artist", artista)
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2150,7 +2231,7 @@ async def chords(ctx, *, query=""):
 @bot.command(name='nightcore', aliases=['spedup'])
 async def nightcore(ctx):
     try:
-        await pitch(ctx, semitones=3.3, speed=1.30303, silent=True)
+        await pitch(ctx, semitones=4, speed=1+4/12, silent=True)
     except:
         traceback.print_exc()
 
@@ -2158,7 +2239,7 @@ async def nightcore(ctx):
 @bot.command(name='daycore', aliases=['slowed'])
 async def daycore(ctx):
     try:
-        await pitch(ctx, semitones=-2.61, speed=0.86, silent=True)
+        await pitch(ctx, semitones=-2, speed=1-2/12, silent=True)
     except:
         traceback.print_exc()
 
@@ -2166,12 +2247,13 @@ async def daycore(ctx):
 @bot.command(name='pitch', aliases=['tone'])
 async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_pitch"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_queue, dict_current_song, dict_current_time
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         speed = max(min(speed, 5), 0.2)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
@@ -2181,28 +2263,33 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not voice_client or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
         if not semitones: semitones = 0  # return to default
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
+        vid['audio_options']['pitch'] = pitch_factor
+        vid['audio_options']['speed'] = speed
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={pitch_factor}, rubberband=tempo={speed}, volume={vid["audio_options"]["volume"]}dB"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
-        vid['audio_options'] = {'pitch': pitch_factor, 'speed': speed, 'volume': vid['audio_options']['volume']}
         if not silent:
             embed = discord.Embed(
                 title=pitch_title,
                 description=pitch_desc.replace("%sign", "+" if float(semitones) >= 0 else "-").replace("%tone", str(abs(float(semitones)))).replace("%speed", str(speed)),
                 color=EMBED_COLOR
             )
-            await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2210,15 +2297,24 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
 @bot.command(name='volume', aliases=['vol'])
 async def volume(ctx, volume: str):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_volume"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         global dict_queue, dict_current_song, dict_current_time
         if not ctx.author.voice:
-            await ctx.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        volume = max(min(float(volume.replace("%", "")), 250), 0.01)
-        vol_db = 20*math.log10(volume/100)
+        try:
+            volume = volume.lower().replace("%", "")
+            if "db" not in volume:
+                volume = max(min(float(volume), 300), 0.01)
+                vol_db = 20 * math.log10(volume / 100)
+            else:
+                vol_db = max(min(9.54, float(volume.replace("db", ""))), -80)
+        except:
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
@@ -2226,25 +2322,161 @@ async def volume(ctx, volume: str):
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not voice_client or not queue:
-            await ctx.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
+        vid['audio_options']['volume'] = vol_db
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, rubberband=tempo={vid["audio_options"]["speed"]}, volume={vol_db}dB"'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
-        vid['audio_options']['volume'] = vol_db
         embed = discord.Embed(
             title=volume_title,
             description=volume_desc.replace("%vol", f"{vol_db:.2f}dB"),
             color=EMBED_COLOR
         )
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='eq', aliases=['equalizer'])
+async def eq(ctx, eqtype="bass", strength="5", silent=False):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_eq"):
+            await channel_to_send.send(random.choice(insuff_perms_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time
+        if not ctx.author.voice:
+            await channel_to_send.send(random.choice(not_in_vc_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await channel_to_send.send(random.choice(different_channel_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not voice_client or not queue:
+            await channel_to_send.send(random.choice(nothing_on_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        vid = queue[current_song]
+        try:
+            strength = str(min(max(float(strength), 0), 12))
+            if eqtype not in {'bass', 'high'}:
+                raise Exception
+        except:
+            await channel_to_send.send(random.choice(invalid_use_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if voice_client.is_playing(): voice_client.pause()
+        vid['audio_options'][eqtype] = strength
+        updated_options = FFMPEG_OPTIONS.copy()
+        updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
+        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
+        voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
+                          after=lambda e: on_song_end(ctx, e))
+        if not silent:
+            embed = discord.Embed(
+                title=eq_title,
+                description=eq_desc.replace("%freq", "300Hz" if eqtype == 'bass' else "8.0kHz")
+                    .replace("%width", "120Hz" if eqtype == 'bass' else "3.0kHz")
+                    .replace("%vol", f"{float(strength):.2f}dB"),
+                color=EMBED_COLOR
+            )
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='bassboost', aliases=['bass', 'low', 'lowboost'])
+async def bassboost(ctx):
+    try:
+        await eq(ctx, eqtype='bass', strength='5', silent=True)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='highboost', aliases=['high'])
+async def highboost(ctx):
+    try:
+        await eq(ctx, eqtype='high', strength='8', silent=True)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='shazam', aliases=['recognize', 'thissong', 'current', 'this', 'currentsong'])
+async def shazam(ctx, clip_length = '15'):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_shazam"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if not queue:
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        start_time = dict_current_time[gid]
+        vid = queue[current_song]
+        msg = await channel_to_send.send(recognizing_song, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        recognized_song = await find_song_shazam(vid['stream_url'], start_time, vid['length'], vid['type'], clip_length=float(clip_length))
+        if not recognized_song:
+            await channel_to_send.send(shazam_no_song, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        genres_dict = recognized_song['genres']
+        genres = genres_dict['primary']
+        if len(genres_dict.keys()) > 1:
+            for genre in genres_dict:
+                genres += genres_dict[genre]
+            plural = True
+        else:
+            plural = False
+        try:
+            album = recognized_song['sections'][0]['metadata']
+            album_info = f"{album[0]['text']} ({album[2]['text']}, {album[1]['text']})"
+        except:
+            album_info = no_album_info_found
+        embed = discord.Embed(
+            title=shazam_title,
+            description=shazam_desc.replace("%title", recognized_song['title']).replace("%artist", recognized_song['subtitle'])
+                .replace("%url", recognized_song['url']).replace("%genres", genres).replace("%plural", "s" if plural else "").replace("%album", album_info),
+            color=EMBED_COLOR
+        )
+        try:
+            embed.set_image(url=recognized_song['images']['coverarthq'])
+            embed.set_thumbnail(url=recognized_song['images']['background'])
+        except:
+            try:
+                embed.set_image(url=recognized_song['images']['coverart'])
+            except:
+                pass
+        await msg.delete()
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2252,8 +2484,9 @@ async def volume(ctx, volume: str):
 @bot.command(name='add_prefix', aliases=['prefix', 'set_prefix'])
 async def add_prefix(ctx, prefix):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_add_prefix"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         file_path = f'options_{gid}.json'
@@ -2274,7 +2507,7 @@ async def add_prefix(ctx, prefix):
         with open(file_path, 'w') as f:
             json.dump(options, f)
 
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2282,8 +2515,9 @@ async def add_prefix(ctx, prefix):
 @bot.command(name='remove_prefix', aliases=['del_prefix', 'rem_prefix'])
 async def del_prefix(ctx, prefix):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_del_prefix"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         gid = str(ctx.guild.id)
         file_path = f'options_{gid}.json'
@@ -2303,7 +2537,7 @@ async def del_prefix(ctx, prefix):
         with open(file_path, 'w') as f:
             json.dump(options, f)
 
-        await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2311,11 +2545,12 @@ async def del_prefix(ctx, prefix):
 @bot.command(name='lang', aliases=['language', 'change_lang', 'change_language'])
 async def lang(ctx, lng=None):
     try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_lang"):
-            await ctx.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not lng or lng.lower() not in ['es', 'en']:
-            await ctx.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
 
         with open(f"lang/{lng.lower()}.json", "r") as f:
@@ -2327,7 +2562,28 @@ async def lang(ctx, lng=None):
 
         globals().update(lang_dict)
 
-        await ctx.send(lang_changed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        await channel_to_send.send(lang_changed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name="restrict", aliases=['channel'])
+async def restrict(ctx, name=""):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_restrict"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not name or name in {"ALL_CHANNELS"}:
+            await options(ctx, option="restricted_to", query="ALL_CHANNELS", ignore=True)
+            await channel_to_send.send(not_restricted, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        else:
+            channel = discord.utils.get(ctx.guild.channels, name=name)
+            if channel:
+                await options(ctx, option="restricted_to", query=name, ignore=True)
+                await channel_to_send.send(restricted_to_channel.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            else:
+                await channel_to_send.send(channel_doesnt_exist.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 

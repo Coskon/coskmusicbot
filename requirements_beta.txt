@@ -12,4 +12,6 @@ fuzzywuzzy
 bs4
 openai
 pyppeteer
-youtube-dl
+yt-dlp
+shazamio
+pydub
