@@ -22,6 +22,7 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - Livestreams (*only in beta*)
 - Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason. (*only in beta*)
 - Spotify to youtube conversion (*only in beta*)
+- Auto DJ (*only in beta*)
 - Raw audio URLs support.
 - English and Spanish languages.
 - User permissions for each command.
@@ -36,6 +37,8 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - And more...
 
 ## Recently added
+- New command: `autodj [query]`, alongside new parameter `AUTO_DJ_MAX_ADD`, gets related songs from the one it's currently playing/the user provided via query, and adds them to the queue each time the queue is about to end. By default it adds 3 each time. This automatically overrides the current loop mode, but changing the loop mode will override the autodj, so if you want to stop it you can `leave` or `loop [any loop mode]`.
+- Slightly modified `nowplaying` command to be more accurate when retrieving the artist using the spotify API.
 - New command: `eq [mode] [volume]`, alongside two quicker options, `bassboost` and `highboost`. "mode" is either bass/high, and "volume" is how much that band is turning up the volume.
 - New command: `shazam [duration]`, takes a little segment of the currently playing song, gets it (like shazam) and gives info about it. "duration" is by default 15 seconds. Useful if you're listening to some sort of mix, livestream, etc. It's a little slower on livestreams, but in general 15 seconds tends to work great.
 - New command/option: `restrict [channel]`, given the name of a text channel, it will restrict practically all bot messages to that channel (this disables referencing). Useful to set a "commands" channel. Reset it by putting no channel or "ALL_CHANNELS". See current channel it's restricted to in `options`.
