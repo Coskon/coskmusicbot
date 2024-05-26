@@ -369,7 +369,7 @@ async def play_next(ctx):
         else:
             await leave(ctx, ignore=True)
     if auto:
-        await autodj(ctx, silent=True, attachment=False)
+        await autodj(ctx, silent=True)
     elif queue:
         url = queue[dict_current_song[gid]]
         await ctx.invoke(bot.get_command('play'), url=url, append=False, attachment=False)
