@@ -1710,7 +1710,9 @@ async def forward(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -1772,7 +1774,9 @@ async def seek(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
