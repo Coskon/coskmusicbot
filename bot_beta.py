@@ -1329,7 +1329,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     )
             elif vtype == 'sp_track':
                 track = sp.track(vid_id)
-                links = search_youtube(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio", max_results=1)[0]
+                links = [search_youtube(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio", max_results=1)[0]]
             elif vtype == 'sp_album':
                 def fetch_video_data(track):
                     videos = Search(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
