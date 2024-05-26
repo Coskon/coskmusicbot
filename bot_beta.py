@@ -37,7 +37,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 30:
+if len(parameters.keys()) < 31:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -80,7 +80,7 @@ dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
 button_choice, vote_skip_dict, vote_skip_counter = dict(), dict(), dict()
 message_id_dict, majority_dict, ctx_dict_skip = dict(), dict(), dict()
 user_cooldowns = {}
-loop_mode = dict()
+loop_mode, autodj_dict = dict(), dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 FFMPEG_OPTIONS = {
@@ -144,14 +144,16 @@ def create_perms_file(ctx, file_path):
 
 
 def on_song_end(ctx, error):
-    global dict_current_song, go_back, seek_called, loop_mode
+    global dict_current_song, go_back, seek_called, loop_mode, autodj_dict
     if error:
         print(f"{generic_error}: {error}")
     if seek_called:
         seek_called = False
     else:
         gid = str(ctx.guild.id)
-        loop_mode[gid] = loop_mode.setdefault(gid, "off")
+        loop_mode.setdefault(gid, "off")
+        autodj_dict.setdefault(gid, -1)
+        autodj_dict[gid] += 1
         if loop_mode[gid] == 'one':
             pass
         elif go_back:
@@ -275,7 +277,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
                 stream_url = None
     if not_youtube:
         try: thumb = info['thumbnail']
-        except: thumb = 'no_image'
+        except: thumb = None
         try: dur = info['duration']
         except: dur = 0
         try: title = info['title']
@@ -287,7 +289,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
         return {
             'obj': None, 'title': title, 'channel': channel, 'views': views,
             'length': dur, 'id': None, 'thumbnail_url': thumb,
-            'url': url, 'stream_url': stream_url, 'channel_url': 'no_image', 'type': vtype,
+            'url': url, 'stream_url': stream_url, 'channel_url': None, 'type': vtype,
             'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
             # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
         }
@@ -354,6 +356,7 @@ async def play_next(ctx):
     dict_current_song.setdefault(gid, 0)
     queue = dict_queue[gid]
     current_song = dict_current_song[gid]
+    auto = False
     if current_song < 0: dict_current_song[gid] = 0
     if current_song >= len(queue):
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
@@ -361,9 +364,13 @@ async def play_next(ctx):
             dict_current_song[gid] = 0
         elif loop_mode[gid] in ['random', 'shuffle']:
             dict_current_song[gid] = random.randint(0, len(queue) - 1)
+        elif loop_mode[gid] == "autodj":
+            auto = True
         else:
             await leave(ctx, ignore=True)
-    if queue:
+    if auto:
+        await autodj(ctx, silent=True)
+    elif queue:
         url = queue[dict_current_song[gid]]
         await ctx.invoke(bot.get_command('play'), url=url, append=False)
 
@@ -708,7 +715,7 @@ async def perms(ctx):
         traceback.print_exc()
 
 
-@bot.command(name='add_perm', aliases=[])
+@bot.command(name='add_perm', aliases=['add_perms'])
 async def add_perm(ctx, name, perm):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -771,7 +778,7 @@ async def add_perm(ctx, name, perm):
         traceback.print_exc()
 
 
-@bot.command(name='del_perm', aliases=[])
+@bot.command(name='del_perm', aliases=['del_perms'])
 async def del_perm(ctx, name, perm):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -973,12 +980,13 @@ async def info(ctx):
             current_song = dict_current_song[gid]
             vid = queue[current_song]
             titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
-            if SPOTIFY_SECRET and SPOTIFY_ID: artista = utilidades.get_spotify_artist(titulo, is_song=True)
-            else: artista = vid['channel'] if vid['channel'] else 'Unknown'
+            vid_channel = vid['channel'] if vid['channel'] else '???'
+            if SPOTIFY_SECRET and SPOTIFY_ID: artista = utilidades.get_spotify_artist(titulo+vid_channel*(vid_channel != "???"), is_song=True)
+            else: artista = vid_channel
             if not artista or vid['type'] == 'raw_audio': artista = vid['channel'] if vid['channel'] else '???'
             embed = discord.Embed(
                 title=song_info_title,
-                description=song_info_desc.replace("%title", titulo).replace("%artist", artista)
+                description=song_info_desc.replace("%title", titulo).replace("%artist", artista).replace("%channel", vid_channel)
                     .replace("%duration", str(duracion)).replace("%bar", utilidades.get_bar(int(vid['length']), dict_current_time[gid])),
                 color=EMBED_COLOR
             )
@@ -1175,7 +1183,7 @@ async def genre(ctx, *, query=""):
 
 
 @bot.command(name='play', aliases=['p'])
-async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False):
+async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False, silent=False):
     global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -1213,9 +1221,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             video_select = url.copy()
         else:
             separate_commands = str(url).split('-opt')
-            url = separate_commands[0].strip()
+            url = separate_commands[0].strip().strip("\n")
             if len(separate_commands) > 1:
-                command = separate_commands[1].strip().lower()
+                command = separate_commands[1].strip().strip("\n").lower()
                 if command in ['1', 'true', 'si', 'y', 'yes', 'gif']: gif = True
                 if command in ['force', 'forceplay', 'force_play', 'play']: force_play = True
             if not is_url(url):
@@ -1521,14 +1529,14 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if vid['stream_url']:
                 if vtype == 'playlist':
                     await channel_to_send.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-                elif voice_client is not None and voice_client.is_playing():
+                elif voice_client is not None and voice_client.is_playing() and not silent:
                     await channel_to_send.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 else:
                     dict_current_time[gid] = 0
-                    await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                    if not silent: await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
             else:
-                await channel_to_send.send(random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                await channel_to_send.send(content=random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         else:
             dict_current_time[gid] = 0
@@ -1545,8 +1553,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if vtype == 'raw_audio':
                 for video in links: dict_queue[gid].append({
                     'obj': None, 'title': 'Raw audio file', 'channel': 'Someone', 'views': 'No views',
-                    'length': 0, 'id': 'none', 'thumbnail_url': 'no_image', 'url': video, 'stream_url': video,
-                    'channel_url': 'no_image', 'type': 'raw_audio',
+                    'length': 0, 'id': 'none', 'thumbnail_url': None, 'url': video, 'stream_url': video,
+                    'channel_url': None, 'type': 'raw_audio',
                     'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
                     # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 })
@@ -1562,9 +1570,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
                         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
-                                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
-                                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
+                                                      f'volume={vid["audio_options"]["volume"]}dB"'
                     voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
             except Exception as e:
@@ -1572,9 +1578,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 pass
     except:
         traceback.print_exc()
-    #except YoutubeDLError as e:
-    #    traceback.print_exc()
-    #    await channel_to_send.send(random.choice(restricted_video_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.command(name='level', aliases=['lvl'])
@@ -1720,9 +1723,7 @@ async def forward(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
-                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
-                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
+                                      f'volume={vid["audio_options"]["volume"]}dB"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -1784,9 +1785,7 @@ async def seek(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
-                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
-                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
+                                      f'volume={vid["audio_options"]["volume"]}dB"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -2491,6 +2490,53 @@ async def shazam(ctx, clip_length = '15'):
                 pass
         await msg.delete()
         await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='auto', aliases=['autodj', 'autoplaylist', 'autopl'])
+async def autodj(ctx, *, url="", silent=False):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_autodj"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time, autodj_dict, loop_mode
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if not queue and not url:
+            await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if url:
+            await fastplay(ctx, url=url)
+        start_time = dict_current_time[gid]
+        vid = queue[current_song-int(1*silent)]
+        recognized_song = await find_song_shazam(vid['stream_url'], start_time, vid['length'], vid['type'], clip_length=15)
+        try:
+            related = requests.get(recognized_song['relatedtracksurl']).json()['tracks']
+        except:
+            await channel_to_send.send(autodj_no_song,
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        tracks = [random.choice(related[:3])]
+        if AUTO_DJ_MAX_ADD > 1:
+            tmp_tracks = random.sample(related[3:], k=AUTO_DJ_MAX_ADD-1)
+        else:
+            tmp_tracks = []
+        tracks = tmp_tracks + tracks
+        autodj_dict.setdefault(gid, 0)
+        loop_mode[gid] = "autodj"
+        song_count = 0
+        for track in tracks:
+            try:
+                await play(ctx, url=search_youtube(query=f"+{track['title']}, {track['subtitle']} audio", max_results=1)[0], silent=True)
+                song_count += 1
+            except:
+                pass
+        if not silent: await channel_to_send.send(autodj_added_songs.replace("%num", str(song_count)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
