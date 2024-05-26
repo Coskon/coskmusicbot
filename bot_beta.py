@@ -1554,7 +1554,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
                         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                                      f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
+                                                      f'equalizer=f=8000:width_type=q:width=2:g={vid["audio_options"]["high"]}"'
                     voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
             except Exception as e:
