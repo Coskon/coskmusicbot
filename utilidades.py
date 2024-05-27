@@ -1,5 +1,6 @@
 import spotipy, lyricsgenius
 import asyncio, json, requests, os
+import re
 from fuzzywuzzy import fuzz
 from bs4 import BeautifulSoup
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -287,7 +288,7 @@ async def search_cifraclub(query):
         print("Link to the song not found in the first result.")
 
 
-def get_chords_and_lyrics(query):
+def get_chords_and_lyrics(query, traspose=0):
     base_url = "https://www.ultimate-guitar.com"
     search_url = f"{base_url}/search.php"
     params = {
@@ -312,18 +313,32 @@ def get_chords_and_lyrics(query):
         if song_page.status_code == 200:
             song_soup = BeautifulSoup(song_page.text, 'html.parser')
             lyrics_div = song_soup.find('div', class_='js-store')
-
             if lyrics_div:
+                notes = {
+                    0: "E", 1: "F", 2: "F#", 3: "G", 4: "G#", 5: "A",
+                    6: "Bb", 7: "B", 8: "C", 9: "C#", 10: "D", 11: "Eb"
+                }
                 data_content = lyrics_div['data-content']
                 content_json = json.loads(data_content)
+                tuning_info = content_json['store']['page']['data']['tab_view']['meta']
+                try:
+                    capo = tuning_info['capo']
+                except:
+                    capo = None
+                tonality, tuning_name, tuning_value = tuning_info['tonality'],\
+                                                            tuning_info['tuning']['name'], tuning_info['tuning']['value']
                 chords_and_lyrics = content_json.get('store', {}).get('page', {}).get('data', {}).get('tab_view', {}).get('wiki_tab', '').get('content', {})
                 if "[Intro]" in chords_and_lyrics: chords_and_lyrics = chords_and_lyrics[chords_and_lyrics.find("[Intro]"):]
                 chords_and_lyrics = chords_and_lyrics.replace('  ', ' \-').replace('[ch]', '`').replace('[/ch]', '`').replace('[tab]', '').replace('[/tab]', '')
-                return chords_and_lyrics
+                for note in notes:
+                    chords_and_lyrics = chords_and_lyrics.replace(f"`{notes[note]}", f"`%{notes[(note+traspose) % 12]}%")
+                for note in notes:
+                    chords_and_lyrics = chords_and_lyrics.replace(f"`%{notes[note]}%", f"`{notes[note]}")
+                return chords_and_lyrics, {'capo': str(capo), 'tonality': tonality, 'tuning_name': tuning_name, 'tuning_value': tuning_value}
             else:
                 print("Lyrics not found.")
         else:
             print(f"Error accessing the song's page. Status code: {song_page.status_code}")
     else:
         print(f"Error searching for the song. Status code: {response.status_code}")
-
+    return None, {}

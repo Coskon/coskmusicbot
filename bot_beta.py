@@ -330,7 +330,8 @@ def get_channel_restriction(ctx):
 ## ASYNC FUNCTIONS ##
 async def choice(ctx, embed, reactions):
     try:
-        message = await ctx.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES else None)
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        message = await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         for rct in reactions:
             await message.add_reaction(rct)
 
@@ -343,7 +344,7 @@ async def choice(ctx, embed, reactions):
             return str(choice.emoji)
         except asyncio.TimeoutError:
             await message.delete()
-            await ctx.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            await channel_to_send.send(random.choice(song_not_chosen_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
             return
     except:
         traceback.print_exc()
@@ -509,7 +510,8 @@ async def on_message(message):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         if not any(ctx.message.content.startswith(prefix) for prefix in EXCLUDED_CASES):
-            await ctx.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES else None)
+            channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+            await channel_to_send.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 ## BOT TASKS ##
@@ -535,7 +537,8 @@ async def members_left():
                 members_left.stop()
                 return
             if len(voice_client.channel.members) <= 1:
-                await ctx.send(random.choice(nobody_left_texts))
+                channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+                await channel_to_send.send(random.choice(nobody_left_texts))
                 gid = str(ctx.guild.id)
                 loop_mode[gid] = loop_mode.setdefault(gid, "off")
                 if loop_mode[gid] != "off": await loop(ctx, 'off')
@@ -585,7 +588,8 @@ async def vote_skip():
         if reactions["✅"] >= majority:
             vote_skip_dict[gid], vote_skip_counter[gid] = 1, 0
             await message.delete()
-            await ctx.send(song_skipped)
+            channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+            await channel_to_send.send(song_skipped, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             await skip(ctx)
             del temp_dict[gid]
             del message_id_dict[gid]
@@ -1418,7 +1422,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         sec = ""
                     embed_playlist.add_field(
                         name=playlist_link,
-                        value=playlist_link_desc.replace("%url", url).replace("%title", playlist.title) +
+                        value=playlist_link_desc.replace("%url", playlist.playlist_url).replace("%title", playlist.title) +
                               playlist_link_desc_time.replace("%duration", playlist_duration_over_limit*(len(links) > PLAYLIST_TIME_LIMIT)+str(sec))
                     )
             elif vtype == 'sp_track':
@@ -2042,11 +2046,16 @@ async def goto(ctx, num):
         if voice_client is None or not queue:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        num = int(num)
-        if 0 < num <= len(queue):
-            dict_current_song[gid] = num - 2
+        try:
+            num = min(max(int(num), -1), len(queue))
+            if num == 0:
+                dict_current_song[gid] = -1
+            elif num == -1:
+                dict_current_song[gid] = len(queue)-2
+            else:
+                dict_current_song[gid] = num - 2
             await skip(ctx)
-        else:
+        except:
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
@@ -2229,6 +2238,14 @@ async def chords(ctx, *, query=""):
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        traspose = None
+        if query:
+            for opts in {'-traspose', '-t', '-trs', '-tp', '-tone', '-tonality'}:
+                vals = query.split(opts)
+                vals = vals if len(vals) > 1 else [vals[0], ""]
+                tquery, ttraspose = vals[0], vals[1]
+                if ttraspose: break
+            query, traspose = tquery.strip(), ttraspose.strip()
         if not query and voice_client is not None and voice_client.is_playing():
             gid = str(ctx.guild.id)
             dict_queue.setdefault(gid, list())
@@ -2241,12 +2258,35 @@ async def chords(ctx, *, query=""):
             return
         artista, cancion = utilidades.get_artist_and_song(query)
 
-        msg = utilidades.get_chords_and_lyrics(query)
+        if not traspose: traspose = 0
+        try: traspose = int(traspose)
+        except: traspose = 0
+        msg, tuning_info = utilidades.get_chords_and_lyrics(query, traspose=traspose)
         if not msg:
             msg = await utilidades.search_cifraclub(query)
         if not msg:
             await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
+        capo = tuning_info['capo']
+        if capo == 'None':
+            capo = no_capo_chords
+            th_val = ""
+        elif int(capo) == 1:
+            th_val = "st fret"
+        elif int(capo) == 2:
+            th_val = "nd fret"
+        elif int(capo) == 3:
+            th_val = "rd fret"
+        else:
+            th_val = "th fret"
+        tuning_embed = discord.Embed(
+            title=tuning_embed_title,
+            description=tuning_embed_desc.replace("%tonality", tuning_info['tonality']).replace("%capo", capo).replace("%th", th_val)
+                .replace("%tuning_name", tuning_info['tuning_name']).replace("%tuning_value", tuning_info['tuning_value'])
+                .replace("%traspose", "+"*int(traspose >= 0)+str(traspose)),
+            color=EMBED_COLOR
+        )
+        await channel_to_send.send(embed=tuning_embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         for i in range(0, len(msg), 4000):
             embed = discord.Embed(
                 title="",
@@ -2254,6 +2294,7 @@ async def chords(ctx, *, query=""):
                 color=EMBED_COLOR
             )
             if i == 0: embed.title = chords_title.replace("%song", cancion).replace("%artist", artista)
+
             await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
@@ -2666,6 +2707,51 @@ async def restrict(ctx, name=""):
                 await channel_to_send.send(restricted_to_channel.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             else:
                 await channel_to_send.send(channel_doesnt_exist.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='download')
+async def download(ctx, choose_song=""):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_download"):
+            await channel_to_send.send(random.choice(insuff_perms_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if choose_song:
+            try:
+                current_song = min(max(int(choose_song)-1, 0), len(queue)-1)
+            except:
+                pass
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await channel_to_send.send(random.choice(different_channel_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not voice_client or not queue:
+            await channel_to_send.send(random.choice(nothing_on_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][dict_queue[gid].index(vid)] = vid = info_from_url(vid, is_url=is_url(vid))
+        url = vid['stream_url']
+        original_url = vid['url']
+        if vid['type'] == 'live':
+            await channel_to_send.send(cannot_download_live, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if 'manifest' in url or '.m3u8' in url:
+            await channel_to_send.send(cannot_download_m3u8, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        await channel_to_send.send(download_url.replace("%url", url).replace("%original_url", original_url), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
