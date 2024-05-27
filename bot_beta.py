@@ -533,7 +533,8 @@ class QueueMenu(discord.ui.View):
             for pos, title in enumerate(self.queue[start_index:end_index])
         ]  # cut titles length
         curr = max(0, dict_current_song[self.gid])
-        page_content[curr] = f"`{page_content[curr][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
+        if (self.current_page - 1) * 30 <= curr <= self.current_page * 30:
+            page_content[curr] = f"`{page_content[curr][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
         embed.description = "\n".join(page_content)
         return embed
 
