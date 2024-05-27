@@ -39,6 +39,8 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - And more...
 
 ## Recently added
+- Queue changed, now with buttons to go to different pages, shuffle and reverse the queue.
+- New command: `reverse`, reverses the queue.
 - New command: `download [number]`, gives the link to download the current playing song (or the song specified with "number").
 - Modified the command `chords`, now adding `-t [semitones]` to the query will traspose the chords.
 - Play from file attachment(s): When using the `play` or `fastplay` commands, appart from the url/query, you can now attach audio files to the message (if it doesn't play then it's probably a incompatibility issue, though it seems to accept a lot). They will be added to queue in order of attachment, and they will be added first, before the url/query is processed.
@@ -121,6 +123,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `forward [time]`: Fast forwards or rewinds the specified time (depends if the time is positive or negative), time can be given either in seconds or in HH:MM:SS format.
 - `volume [volume]`: Changes the volume of the current track, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB)
 - `shuffle`: Randomizes the order of the songs in the queue.
+- `reverse`: Reverses the order of the queue.
 - `autodj [query]`: Periodically gets similar songs from whats playing/the query (if given), and ads them to the queue.
 - `shazam [duration]`: Tries to recognize the currently playing song and gives info about it. "duration" is the length of the clip to search, default is 15 (in seconds).
 - `eq [type] [volume]`: Equalizes the track, types: "bass", "high". Volume in dB, from 0 to 12dB. This will be changed to be more in-depth.
