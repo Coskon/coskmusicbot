@@ -5,7 +5,7 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 
 ### NOW IN BETA (SOON TO RELEASE 1.0.0)
 #### Important feature
-Added support for a lot of different pages (for info on the possible pages with support, go [here](https://github.com/yt-dlp/yt-dlp/tree/master/yt_dlp/extractor), each .py file is a different website extractor). If you use a supposedly compatible url but it doesn't work, try running `format_extractor.py` with your URL and send me the output/open an issue. I'll add as much formats as possible.
+Added support for a lot of different pages (for info on the possible pages with support, go [here](https://github.com/yt-dlp/yt-dlp/tree/master/yt_dlp/extractor), each .py file is a different website extractor). If you use a supposedly compatible url but it doesn't work, try running `format_extractor.py` with your URL and send me the output/open an issue. I'll add as much formats as possible. You might need to add a 'cookies.txt' file extracted from your browser to access some of these sites to the bot folder.
 
 ---
 Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).  
