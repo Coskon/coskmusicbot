@@ -80,7 +80,7 @@ dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
 button_choice, vote_skip_dict, vote_skip_counter = dict(), dict(), dict()
 message_id_dict, majority_dict, ctx_dict_skip = dict(), dict(), dict()
 user_cooldowns = {}
-loop_mode, autodj_dict = dict(), dict()
+loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 FFMPEG_OPTIONS = {
@@ -117,9 +117,8 @@ def get_video_info(video, gid):
     global dict_queue
     try:
         if isinstance(video, str):
-            dict_queue[gid][dict_queue[gid].index(video)] = video = info_from_url(video, is_url=is_url(video))
-        return video['title']
-    except Exception as e:
+            dict_queue[gid][dict_queue[gid].index(video)] = info_from_url(video, is_url=is_url(video))
+    except:
         traceback.print_exc()
 
 
@@ -144,7 +143,7 @@ def create_perms_file(ctx, file_path):
 
 
 def on_song_end(ctx, error):
-    global dict_current_song, go_back, seek_called, loop_mode, autodj_dict
+    global dict_current_song, go_back, seek_called, loop_mode
     if error:
         print(f"{generic_error}: {error}")
     if seek_called:
@@ -152,8 +151,6 @@ def on_song_end(ctx, error):
     else:
         gid = str(ctx.guild.id)
         loop_mode.setdefault(gid, "off")
-        autodj_dict.setdefault(gid, -1)
-        autodj_dict[gid] += 1
         if loop_mode[gid] == 'one':
             pass
         elif go_back:
@@ -370,7 +367,7 @@ async def play_next(ctx):
         else:
             await leave(ctx, ignore=True)
     if auto:
-        await autodj(ctx, silent=True)
+        await autodj(ctx, ignore=True)
     elif queue:
         url = queue[dict_current_song[gid]]
         await ctx.invoke(bot.get_command('play'), url=url, append=False, attachment=False)
@@ -443,7 +440,7 @@ class PlayButton(discord.ui.Button):
     def __init__(self, song_index, gid, disabled=False):
         self.song_index = song_index
         self.gid = gid
-        super().__init__(label=f"", style=discord.ButtonStyle.secondary,
+        super().__init__(label="", style=discord.ButtonStyle.success if 0 <= song_index < 5 else discord.ButtonStyle.secondary,
                          emoji=f"{['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '🔀', '⬅️', '❌', '➡️', '🇦'][song_index if song_index != -1 else 7]}",
                          disabled=disabled, custom_id=str(song_index))
     async def callback(self, interaction):
@@ -456,8 +453,89 @@ class SongChooseMenu(discord.ui.View):
         super().__init__()
         # song choice buttons
         for i in range(10):
-            if i == 7: self.add_item(PlayButton(-1, gid))
-            else: self.add_item(PlayButton(i, gid))
+            if i == 7: self.add_item(PlayButton(-1, gid)) # cancel
+            else: self.add_item(PlayButton(i, gid)) # other buttons
+
+
+class QueueMenu(discord.ui.View):
+    def __init__(self, queue, num_pages, ctx, gid):
+        super().__init__()
+        self.queue = queue
+        self.num_pages = num_pages
+        self.current_page = 1
+        self.gid = gid
+        self.ctx = ctx  # to check for perms
+
+    @discord.ui.button(label="", emoji="🔃", style=discord.ButtonStyle.secondary)
+    async def button_reverse(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            successful = await reverse(self.ctx)
+            if successful:
+                self.queue = [vid['title'] for vid in dict_queue[self.gid]]
+                self.current_page = 1
+                await self.update_message(interaction)
+                return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="⬅️", style=discord.ButtonStyle.secondary)
+    async def button_prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            if self.current_page > 1:
+                self.current_page -= 1
+            await self.update_message(interaction)
+            return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="❌", style=discord.ButtonStyle.secondary)
+    async def button_cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            await self.update_message(interaction, True)
+            return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="➡️", style=discord.ButtonStyle.secondary)
+    async def button_next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            if self.current_page < self.num_pages:
+                self.current_page += 1
+            await self.update_message(interaction)
+            return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="🔀", style=discord.ButtonStyle.secondary)
+    async def button_shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global dict_queue
+        if self.ctx.author.id == interaction.user.id:
+            successful = await shuffle(self.ctx)
+            if successful:
+                self.queue = [vid['title'] for vid in dict_queue[self.gid]]
+                self.current_page = 1
+                await self.update_message(interaction)
+                return
+        await interaction.response.defer()
+
+    async def update_message(self, interaction: discord.Interaction, cancelled=False):
+        if cancelled:
+            await interaction.message.delete()
+            return
+        embed = self.create_embed()
+        await interaction.message.edit(embed=embed, view=self)
+        await interaction.response.defer()
+
+    def create_embed(self):
+        global dict_current_song
+        embed = discord.Embed(title=f"Queue Page {self.current_page}/{self.num_pages}")
+        start_index = (self.current_page - 1) * 30
+        end_index = start_index + 30
+        MAX_LENGTH = 70
+        page_content = [
+            f"{pos+1}. {title[:(MAX_LENGTH-len(str(pos)))]}"+"..."*int(len(title) > (MAX_LENGTH-len(str(pos))))
+            for pos, title in enumerate(self.queue[start_index:end_index])
+        ]  # cut titles length
+        curr = max(0, dict_current_song[self.gid])
+        page_content[curr] = f"`{page_content[curr][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
+        embed.description = "\n".join(page_content)
+        return embed
 
 
 ## BOT EVENTS ##
@@ -957,7 +1035,6 @@ async def leave(ctx, ignore=False):
                 return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
-        if loop_mode[gid] != "off": await loop(ctx, 'off')
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -968,6 +1045,7 @@ async def leave(ctx, ignore=False):
         except:
             traceback.print_exc()
             pass
+        if loop_mode[gid] != "off": await loop(ctx, 'off')
         change_active(ctx, mode='d')
         try:
             dict_queue[gid].clear()
@@ -1211,16 +1289,19 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             return
         gid = str(ctx.guild.id)
         if disable_play: return
-        if not ctx.author.voice:
+        if not ctx.author.voice and attachment:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not url and not ctx.message.attachments:
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        voice_channel = ctx.author.voice.channel
-        if not voice_channel.permissions_for(ctx.me).connect:
-            await channel_to_send.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-            return
+        if attachment:
+            voice_channel = ctx.author.voice.channel
+            if not voice_channel.permissions_for(ctx.me).connect:
+                await channel_to_send.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+        else:
+            voice_channel = voice_client.channel
         if voice_client:
             if voice_client.channel != voice_channel:
                 await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1274,9 +1355,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         '5️⃣': 5,
                         '❌': None
                     }
-
                     choice_embed.set_thumbnail(url=results[0]['thumbnail_url'])
-                    for i in range(5):
+                    for i in range(len(results[:5])):
                         texto = f"{emojis_reactions[i]} [{results[i]['title']}]({results[i]['url']}) `{convert_seconds(results[i]['length'])}`\n"
                         choice_embed.add_field(name="", value=texto, inline=False)
                     await search_message.delete()
@@ -1333,7 +1413,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                             all_chosen = True
                             await channel_to_send.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         else:
-                            video_select = results[button_choice[gid]+5*(current_page-1)]
+                            chosen = min(len(results[5*(current_page-1):5*current_page])+5*(current_page-1)-1, button_choice[gid]+5*(current_page-1))
+                            video_select = results[chosen]
                             if voice_client:
                                 await channel_to_send.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                             else:
@@ -1879,9 +1960,10 @@ async def shuffle(ctx):
         if voice_client.is_playing(): voice_client.pause()
         dict_current_song[gid] = -1
         random.shuffle(queue)
-        await voice_client.stop()
         if update_current_time.is_running(): update_current_time.stop()
         dict_current_time[gid] = 0
+        await skip(ctx)
+        return True
     except:
         traceback.print_exc()
 
@@ -1898,32 +1980,19 @@ async def cola(ctx, silent=False):
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
-        current_song = dict_current_song[gid]
         if not queue:
             await channel_to_send.send(random.choice(no_queue_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        titulos, i, titlelen = [], 1, 0
         with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
             gids = [gid for _ in range(len(queue))]
-            titulos = list(executor.map(get_video_info, queue, gids))
+            executor.map(get_video_info, queue, gids)
         print("Queue processed.")
         if not silent:
-            for k in range(len(titulos)):
-                titulos[k] = f"`{i}. " + titulos[k] + queue_current if current_song == i - 1 else \
-                    f"{i}. *" + titulos[k] + "*"
-                i += 1
-            titletext = '\n'.join(titulos)
-            if len(titletext) > 3000:
-                newtext = cut_string(titletext, 3000)
-                nwlncount = newtext[1].count('\n')
-                titletext = newtext[0] + queue_more_videos.replace("%more_videos", str(nwlncount)).replace("%plural",
-                                                                                                           "s" if nwlncount != 1 else "")
-            embed = discord.Embed(
-                title=queue_title,
-                description=titletext,
-                color=EMBED_COLOR
-            )
-            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            num_pages = (len(queue) - 1) // 30 + 1
+            title_queue = [vid['title'] for vid in queue]
+            view = QueueMenu(title_queue, num_pages, ctx, gid)
+            embed = view.create_embed()
+            await channel_to_send.send(embed=embed, view=view, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2513,6 +2582,7 @@ async def shazam(ctx, clip_length = '15'):
         if not queue:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
+        dict_current_time.setdefault(gid, 0)
         start_time = dict_current_time[gid]
         vid = queue[current_song]
         msg = await channel_to_send.send(recognizing_song, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2558,25 +2628,29 @@ async def shazam(ctx, clip_length = '15'):
 
 
 @bot.command(name='auto', aliases=['autodj', 'autoplaylist', 'autopl'])
-async def autodj(ctx, *, url="", silent=False):
+async def autodj(ctx, *, url="", ignore=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_autodj"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time, autodj_dict, loop_mode
+        global dict_queue, dict_current_song, dict_current_time, loop_mode
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
+        if not ignore and not ctx.author.voice:
+            await channel_to_send.send(random.choice(not_in_vc_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
         if not queue and not url:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if url:
             await fastplay(ctx, url=url)
         start_time = dict_current_time[gid]
-        vid = queue[current_song-int(1*silent)]
+        vid = queue[current_song-int(1*ignore)]
         recognized_song = await find_song_shazam(vid['stream_url'], start_time, vid['length'], vid['type'], clip_length=15)
         try:
             related = requests.get(recognized_song['relatedtracksurl']).json()['tracks']
@@ -2590,7 +2664,6 @@ async def autodj(ctx, *, url="", silent=False):
         else:
             tmp_tracks = []
         tracks = tmp_tracks + tracks
-        autodj_dict.setdefault(gid, 0)
         loop_mode[gid] = "autodj"
         song_count = 0
         for track in tracks:
@@ -2599,7 +2672,7 @@ async def autodj(ctx, *, url="", silent=False):
                 song_count += 1
             except:
                 pass
-        if not silent: await channel_to_send.send(autodj_added_songs.replace("%num", str(song_count)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        await channel_to_send.send(autodj_added_songs.replace("%num", str(song_count)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2752,6 +2825,46 @@ async def download(ctx, choose_song=""):
             return
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         await channel_to_send.send(download_url.replace("%url", url).replace("%original_url", original_url), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='reverse')
+async def reverse(ctx):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_reverse"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time
+
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        queue = dict_queue[gid]
+        if not ctx.author.voice:
+            await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is None:
+            await channel_to_send.send(random.choice(nothing_on_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+
+        voice_channel = ctx.author.voice.channel
+        if voice_client.channel != voice_channel:
+            await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+
+        if not queue:
+            await channel_to_send.send(random.choice(no_queue_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+
+        dict_current_song[gid] = -1
+        dict_current_time[gid] = 0
+        queue.reverse()
+        await skip(ctx)
+        await channel_to_send.send(queue_reversed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        return 1
     except:
         traceback.print_exc()
 
