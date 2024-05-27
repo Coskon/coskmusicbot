@@ -39,6 +39,8 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - And more...
 
 ## Recently added
+- New command: `download [number]`, gives the link to download the current playing song (or the song specified with "number").
+- Modified the command `chords`, now adding `-t [semitones]` to the query will traspose the chords.
 - Play from file attachment(s): When using the `play` or `fastplay` commands, appart from the url/query, you can now attach audio files to the message (if it doesn't play then it's probably a incompatibility issue, though it seems to accept a lot). They will be added to queue in order of attachment, and they will be added first, before the url/query is processed.
 - `shazam` and `autodj` are now faster for longer videos.
 - New command: `autodj [query]`, alongside new parameter `AUTO_DJ_MAX_ADD`, gets related songs from the one it's currently playing/the user provided via query, and adds them to the queue each time the queue is about to end. By default it adds 3 each time. This automatically overrides the current loop mode, but changing the loop mode will override the autodj, so if you want to stop it you can `leave` or `loop [any loop mode]`.
