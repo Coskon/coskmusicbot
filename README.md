@@ -125,7 +125,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `bassboost`/`highboost`: Shortcuts for `eq` to boost the bass/high frequencies respectively.
 - `nowplaying`: Shows information about the current song (title, artist, duration). **Requires Spotify API**
 - `lyrics [song]`: Shows the lyrics of the specified song. If no song is given, it shows the lyrics of the song currently playing. **Requires Spotify and Genius API**
-- `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. **Requires Spotify API**
+- `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. Traspose the chords adding `-t [semitones]` to the query (*only in beta*). **Requires Spotify API**
 - `songs [number] [artist]`: Shows the top "number" (10 by default) songs from the specified artist. If no artist is given, it will retrieve it from the song currently playing. **Requires Spotify API**
 - `genre [genre]`: Shows songs of the given genre. If no genre is specified, shows the list of available genres to search. **Requires Spotify API**
 - `search [platform] [query]`: Searches in youtube (by default) or spotify the given query and shows the results. **Requires Spotify API**
