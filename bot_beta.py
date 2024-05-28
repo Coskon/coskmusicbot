@@ -114,11 +114,12 @@ def get_sp_id(url):
         raise ValueError("Invalid Spotify URL")
 
 
-def get_video_info(video, gid):
+def get_video_info(video):
     global dict_queue
     try:
         if isinstance(video, str):
-            dict_queue[gid][dict_queue[gid].index(video)] = info_from_url(video, is_url=is_url(video))
+            video = info_from_url(video, is_url=is_url(video))
+        return video
     except:
         traceback.print_exc()
 
@@ -128,6 +129,29 @@ def create_options_file(file_path):
         with open(file_path, 'w') as f:
             json.dump({ "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
                        "custom_prefixes": DEFAULT_PREFIXES, "restricted_to": "ALL_CHANNELS" }, f)
+
+
+def get_playlist_duration(playlist_url, urls, total_extracted):
+    PLAYLIST_YDL_OPTS = {
+        'quiet': True,
+        'extract_flat': True,
+        'dump_single_json': True,
+        'playlist-end': 1,
+        'ignoreerrors': True
+    }
+
+    with YoutubeDL(PLAYLIST_YDL_OPTS) as ydl:
+        playlist_info = ydl.extract_info(playlist_url, download=False)
+
+        total_duration, total = 0, 0
+        videos = playlist_info['entries']
+        for video in videos:
+            if video['duration'] and video['url'] in urls:
+                total_duration += video['duration']
+                total += 1
+            if total >= total_extracted:
+                break
+    return total_duration, len(videos), total
 
 
 def create_perms_file(ctx, file_path):
@@ -460,7 +484,7 @@ class SongChooseMenu(discord.ui.View):
 
 class QueueMenu(discord.ui.View):
     def __init__(self, queue, num_pages, ctx, gid):
-        super().__init__()
+        super().__init__(timeout=None)
         self.queue = queue
         self.num_pages = num_pages
         self.current_page = 1
@@ -472,7 +496,7 @@ class QueueMenu(discord.ui.View):
         if self.ctx.author.id == interaction.user.id:
             successful = await reverse(self.ctx)
             if successful:
-                self.queue = [vid['title'] for vid in dict_queue[self.gid]]
+                self.queue = dict_queue[self.gid].copy()
                 self.current_page = 1
                 await self.update_message(interaction)
                 return
@@ -509,7 +533,7 @@ class QueueMenu(discord.ui.View):
         if self.ctx.author.id == interaction.user.id:
             successful = await shuffle(self.ctx)
             if successful:
-                self.queue = [vid['title'] for vid in dict_queue[self.gid]]
+                self.queue = dict_queue[self.gid].copy()
                 self.current_page = 1
                 await self.update_message(interaction)
                 return
@@ -525,21 +549,35 @@ class QueueMenu(discord.ui.View):
 
     def create_embed(self):
         global dict_current_song
-        start_index = (self.current_page - 1) * 30
-        end_index = start_index + 30
+        start_index = (self.current_page - 1) * QUEUE_VIDEOS_PER_PAGE
+        end_index = start_index + QUEUE_VIDEOS_PER_PAGE
+        with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+            self.queue[start_index:end_index] = dict_queue[self.gid][start_index:end_index] = \
+                list(executor.map(get_video_info, self.queue[start_index:end_index]))
+        title_queue = [vid['title'] for vid in self.queue[start_index:end_index]]
         MAX_LENGTH = 70
         page_content = [
-            f"{pos+1}. {title[:(MAX_LENGTH-len(str(pos)))]}"+"..."*int(len(title) > (MAX_LENGTH-len(str(pos))))
-            for pos, title in enumerate(self.queue[start_index:end_index])
+            f"{pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1)}. {title[:(MAX_LENGTH-len(str(pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1))))]}"+
+            "..."*int(len(title) > (MAX_LENGTH-len(str(pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1)))))
+            for pos, title in enumerate(title_queue)
         ]  # cut titles length
         curr = max(0, dict_current_song[self.gid])
-        if (self.current_page - 1) * 30 <= curr <= self.current_page * 30:
-            page_content[curr] = f"`{page_content[curr][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
+        if (self.current_page - 1) * QUEUE_VIDEOS_PER_PAGE <= curr <= self.current_page * QUEUE_VIDEOS_PER_PAGE:
+            page_content[curr % QUEUE_VIDEOS_PER_PAGE] = f"`{page_content[curr % QUEUE_VIDEOS_PER_PAGE][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr % QUEUE_VIDEOS_PER_PAGE][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
+        if any(isinstance(vid, str) for vid in self.queue):
+            videos_with_length = filter(lambda vid: not isinstance(vid, str), dict_queue[self.gid])
+            not_all = True
+        else:
+            videos_with_length = self.queue.copy()
+            not_all = False
         embed = discord.Embed(
-            title=f"Queue Page {self.current_page}/{self.num_pages}",
+            title=queue_title,
             description="\n".join(page_content),
             color=EMBED_COLOR
         )
+        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`")
+        embed.add_field(name=queue_videos, value=f"`{len(dict_queue[self.gid])}`")
+        embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
         return embed
 
 
@@ -1314,10 +1352,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if voice_client.channel != voice_channel:
                 await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
-            if not voice_client.is_connected():
-                await voice_channel.connect()
-        else:
+        try:
             await voice_channel.connect()
+        except:
+            pass
         if ctx.message.attachments and attachment:
             for attachment in ctx.message.attachments:
                 await play(ctx, url=f"{attachment.url} -opt force", search=False, attachment=False)
@@ -1486,11 +1524,15 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         vtype = 'video'
                         failed_check = True
                 if not failed_check:
+                    video_count = len(links)
+                    links = links[:PLAYLIST_MAX_LIMIT]
+                    total_duration, total_videos, fetched_videos = get_playlist_duration(playlist.playlist_url, links, len(links))
+                    if total_videos != fetched_videos:
+                        await channel_to_send.send(playlist_videos_unavailable.replace("%total", str(total_videos)).replace("%unavailable", str(total_videos-fetched_videos-max(0, video_count-PLAYLIST_MAX_LIMIT))))
+                    if video_count > PLAYLIST_MAX_LIMIT:
+                        await channel_to_send.send(playlist_max_reached.replace("%pl_length", str(video_count)).replace("%over", str(abs(
+                            PLAYLIST_MAX_LIMIT - video_count))).replace("%discarded", str(abs(PLAYLIST_MAX_LIMIT - video_count))))
                     links[0] = info_from_url(links[0])
-                    if len(links) > PLAYLIST_MAX_LIMIT:
-                        await channel_to_send.send(playlist_max_reached.replace("%pl_length", str(len(links))).replace("%over", str(abs(
-                            PLAYLIST_MAX_LIMIT - len(links)))).replace("%discarded", str(abs(PLAYLIST_MAX_LIMIT - len(links)))))
-                        links = links[:PLAYLIST_MAX_LIMIT]
                     embed_playlist = discord.Embed(
                         title=playlist_added_title,
                         description=playlist_added_desc.replace("%name", ctx.author.global_name)
@@ -1498,21 +1540,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                             .replace("%pl_length", str(len(links))),
                         color=EMBED_COLOR
                     )
-
-                    def get_duration(yt):
-                        return yt.length
-
-                    videos = playlist.videos
-                    if len(videos) <= PLAYLIST_TIME_LIMIT:
-                        with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
-                            playlist_duration = sum(executor.map(get_duration, videos))
-                        sec = convert_seconds(playlist_duration)
-                    else:
-                        sec = ""
                     embed_playlist.add_field(
                         name=playlist_link,
                         value=playlist_link_desc.replace("%url", playlist.playlist_url).replace("%title", playlist.title) +
-                              playlist_link_desc_time.replace("%duration", playlist_duration_over_limit*(len(links) > PLAYLIST_TIME_LIMIT)+str(sec))
+                              playlist_link_desc_time.replace("%duration", convert_seconds(total_duration))
                     )
             elif vtype == 'sp_track':
                 track = sp.track(vid_id)
@@ -1991,14 +2022,9 @@ async def cola(ctx, silent=False):
         if not queue:
             await channel_to_send.send(random.choice(no_queue_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
-            gids = [gid for _ in range(len(queue))]
-            executor.map(get_video_info, queue, gids)
-        print("Queue processed.")
         if not silent:
-            num_pages = (len(queue) - 1) // 30 + 1
-            title_queue = [vid['title'] for vid in queue]
-            view = QueueMenu(title_queue, num_pages, ctx, gid)
+            num_pages = (len(queue) - 1) // QUEUE_VIDEOS_PER_PAGE + 1
+            view = QueueMenu(queue, num_pages, ctx, gid)
             embed = view.create_embed()
             await channel_to_send.send(embed=embed, view=view, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
@@ -2879,6 +2905,22 @@ async def reverse(ctx):
         await skip(ctx)
         await channel_to_send.send(queue_reversed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         return 1
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='reload_params', aliases=['reload'])
+@commands.has_permissions(administrator=True)
+async def reload(ctx):
+    try:
+        parameters = read_param()
+        if len(parameters.keys()) < 31:
+            input(f"\033[91m{missing_parameters}\033[0m")
+            write_param()
+            parameters = read_param()
+
+        globals().update(parameters)
+        print("Parameters succesfully reloaded.")
     except:
         traceback.print_exc()
 
