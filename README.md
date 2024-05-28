@@ -3,18 +3,8 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 
 ---
 
-### NOW IN BETA (SOON TO RELEASE 1.0.0)
-#### Important feature
-Added support for a lot of different pages (for info on the possible pages with support, go [here](https://github.com/yt-dlp/yt-dlp/tree/master/yt_dlp/extractor), each .py file is a different website extractor). If you use a supposedly compatible url but it doesn't work, try running `format_extractor.py` with your URL and send me the output/open an issue. I'll add as much formats as possible. You might need to add a 'cookies.txt' file extracted from your browser to access some of these sites to the bot folder.
-
----
-Changed from downloading the videos to streaming them, allowing for faster responses, no space issues, practically any video length, and it can now access livestreamings! However, this is still in beta (see the beta disclaimer below).  
-
-Spotify support (convert from spotify to youtube). Most spotify links + codes should work of tracks, albums and playlists. Kinda slow (~10-15 seconds for a 100 track playlist), since it has to actually search, going any faster would require another library. 
-
-Added support to play directly raw audio urls (such as the ones obtained from the yt downloader).  
-
-Switched back to pytube from yt-dlp, though kept it for age restricted videos and livestreams. Everything now is much faster, and you don't have to login with pytube, or change its code or anything like that. However, the audio might cut though it rarely happens.
+### Pre release: v0.9.0-pre
+Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
 
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
@@ -39,6 +29,10 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - And more...
 
 ## Recently added
+- `PLAYLIST_MAX_TIME` no longer exists, now the duration of all playlists is calculated due to a speed increase by using yt-dlp, it shouldn't take more than a few seconds for very long playlists (+1000 videos).
+- Added N° of videos and queue length into the queue, and now it also loads `QUEUE_VIDEOS_PER_PAGE` (30 by default) videos instead of the full queue at once, improving speeds for long queues.
+- New command: `reload`, reloads the values of the parameters from the PARAMETERS.txt file without having to restart the bot. Only admins can do this (no individual user permission for this).
+- Edited some default parameters given the current capabilities. `MAX_VIDEO_LENGTH` is now 60hs, `PLAYLIST_MAX_LIMIT` is 1000 videos, etc.
 - Queue changed, now with buttons to go to different pages, shuffle and reverse the queue.
 - New command: `reverse`, reverses the queue.
 - New command: `download [number]`, gives the link to download the current playing song (or the song specified with "number").
@@ -46,11 +40,6 @@ Switched back to pytube from yt-dlp, though kept it for age restricted videos an
 - Play from file attachment(s): When using the `play` or `fastplay` commands, appart from the url/query, you can now attach audio files to the message (if it doesn't play then it's probably a incompatibility issue, though it seems to accept a lot). They will be added to queue in order of attachment, and they will be added first, before the url/query is processed.
 - `shazam` and `autodj` are now faster for longer videos.
 - New command: `autodj [query]`, alongside new parameter `AUTO_DJ_MAX_ADD`, gets related songs from the one it's currently playing/the user provided via query, and adds them to the queue each time the queue is about to end. By default it adds 3 each time. This automatically overrides the current loop mode, but changing the loop mode will override the autodj, so if you want to stop it you can `leave` or `loop [any loop mode]`.
-- Slightly modified `nowplaying` command to be more accurate when retrieving the artist using the spotify API.
-- New command: `eq [mode] [volume]`, alongside two quicker options, `bassboost` and `highboost`. "mode" is either bass/high, and "volume" is how much that band is turning up the volume.
-- New command: `shazam [duration]`, takes a little segment of the currently playing song, gets it (like shazam) and gives info about it. "duration" is by default 15 seconds. Useful if you're listening to some sort of mix, livestream, etc. It's a little slower on livestreams, but in general 15 seconds tends to work great.
-- New command/option: `restrict [channel]`, given the name of a text channel, it will restrict practically all bot messages to that channel (this disables referencing). Useful to set a "commands" channel. Reset it by putting no channel or "ALL_CHANNELS". See current channel it's restricted to in `options`.
-- New parameters: `SKIP_PRIVATE_SEARCH` (ignore private/restricted videos when searching, makes searching faster), `SPOTIFY_LIMIT` (limit of tracks in a spotify playlist/album).
 
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
@@ -136,6 +125,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `search [platform] [query]`: Searches in youtube (by default) or spotify the given query and shows the results. **Requires Spotify API**
 - `pitch [semitones] [speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). You can also change the speed of the track, by default it will keep the same speed (*only in beta*).
 - `nightcore`/`daycore`: Shortcuts for `pitch` to pitch up and speed up/pitch down and slow down the song respectively.
+- `download [number]`: Gives a link to download the song currently playing, or the one specified in `number`.
 - `steam [user]`: Shows the steam profile of the specified user.
 - `ping`: Shows the bot latency.
 - `pfp`: Shows your profile picture.
