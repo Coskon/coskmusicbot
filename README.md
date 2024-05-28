@@ -153,18 +153,29 @@ You can see aliases for each command using the bot. If you want to change the na
 
 ## To be added
 A list of things that might get added:
-- [X] ~~Majority vote to skip/rewind for users without permission.~~
-- [ ] More info to the `steam` command.
-- [X] ~~Buttons instead of reactions to choose a song (since they are faster).~~
-- [X] ~~Spotify support to play songs and playlists.~~
-- [X] ~~Languages.~~
-- [X] ~~User interface.~~ (kinda, will be modified)
+### High priority
+Features that would be nice to have right now.
+- [ ] Linux/MAC support. (will be difficult to test as i don't have neither).
+- [ ] Better looking embeds (alongside more information).
+- [ ] Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist).
+- [ ] Stop bot from pausing when selecting a song.
+
+### Medium priority
+Features that are not as important, but would be nice to have.
 - [ ] Easier command customization.
-- [ ] Linux/MAC support.
-- [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc)
-- [ ] Channel name in the info.
-- [ ] ~~Better queue visualization~~, better info visualization, etc.
-- [ ] Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist)
-- [ ] Interactive buttons to play, resume, etc.
-- [ ] More in-depth equalization.
 - [ ] More audio effects.
+- [ ] Interactive buttons to play, resume, etc.
+- [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc).
+
+### Low priority
+Features that can wait.
+- [ ] Improve the user interface to modify parameters.
+- [ ] More info to the `steam` command.
+- [ ] More in-depth equalization.
+
+
+
+
+
+
+
