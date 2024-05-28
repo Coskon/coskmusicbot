@@ -1,0 +1,61 @@
+BOT_NAME = Coskquin  # name of your bot
+
+MAX_VIDEO_LENGTH = 43200  # in seconds
+
+PLAYLIST_MAX_LIMIT = 500  # max videos on playlist
+
+PLAYLIST_TIME_LIMIT = 75  # max videos to calculate the duration of a playlist
+
+SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album
+
+TIMELIMIT = 40  # (in seconds) timelimit for the popup of the search choice embed
+
+REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user
+
+MEMBERS_LEFT_TIMEOUT = 30  # (in seconds) time between each check for members left
+
+EMBED_COLOR = 0xff0000  # color for the side of the embed
+
+ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure
+
+DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default
+
+DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default
+
+LVL_PLAY_ADD = 1  # how much to add per play command called
+
+LVL_NEXT_XP = 25  # how much required xp added per next level
+
+LVL_BASE_XP = 25  # base xp required for the first level
+
+NUM_THREADS_HIGH = 6  # number of threads to use for tasks that need high performance
+
+NUM_THREADS_LOW = 3  # number of threads to use for tasks that don't need as much performance
+
+USE_LOGIN = False
+
+DOWNLOAD_PATH = downloads/  # download output folder
+
+DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default
+
+EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands
+
+AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse']  # all permissions available
+
+DEFAULT_USER_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download']  # permissions each user gets by default
+
+ADMIN_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse']  # permissions admin users get by default
+
+USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions
+
+USE_GRADIO = True  # use gradio for the user interface
+
+SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote
+
+MAX_SEARCH_SELECT = 15  # limit of youtube searching when choosing a song
+
+REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not
+
+SKIP_PRIVATE_SEARCH = False  # whether or not to skip private/age restricted videos when searching
+
+AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time
