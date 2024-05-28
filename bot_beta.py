@@ -12,6 +12,7 @@ from pytube import Playlist, Search, YouTube
 from yt_dlp import YoutubeDL
 from concurrent.futures import ThreadPoolExecutor
 from extras import *
+from fuzzywuzzy import process
 
 ## BOT INITIALIZATION ##
 intents = discord.Intents.default()
@@ -524,7 +525,6 @@ class QueueMenu(discord.ui.View):
 
     def create_embed(self):
         global dict_current_song
-        embed = discord.Embed(title=f"Queue Page {self.current_page}/{self.num_pages}")
         start_index = (self.current_page - 1) * 30
         end_index = start_index + 30
         MAX_LENGTH = 70
@@ -535,7 +535,11 @@ class QueueMenu(discord.ui.View):
         curr = max(0, dict_current_song[self.gid])
         if (self.current_page - 1) * 30 <= curr <= self.current_page * 30:
             page_content[curr] = f"`{page_content[curr][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
-        embed.description = "\n".join(page_content)
+        embed = discord.Embed(
+            title=f"Queue Page {self.current_page}/{self.num_pages}",
+            description="\n".join(page_content),
+            color=EMBED_COLOR
+        )
         return embed
 
 
@@ -616,8 +620,11 @@ async def members_left():
                 members_left.stop()
                 return
             if len(voice_client.channel.members) <= 1:
-                channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-                await channel_to_send.send(random.choice(nobody_left_texts))
+                try:
+                    channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+                    await channel_to_send.send(random.choice(nobody_left_texts))
+                except:
+                    continue
                 gid = str(ctx.guild.id)
                 loop_mode[gid] = loop_mode.setdefault(gid, "off")
                 if loop_mode[gid] != "off": await loop(ctx, 'off')
@@ -2664,14 +2671,20 @@ async def autodj(ctx, *, url="", ignore=False):
             tmp_tracks = random.sample(related[3:], k=AUTO_DJ_MAX_ADD-1)
         else:
             tmp_tracks = []
-        tracks = tmp_tracks + tracks
+        tracks = tmp_tracks + tracks + related
         loop_mode[gid] = "autodj"
+        queue_titles = [vid['title'] for vid in queue]
         song_count = 0
         for track in tracks:
+            if song_count >= AUTO_DJ_MAX_ADD: break
             try:
-                await play(ctx, url=search_youtube(query=f"+{track['title']}, {track['subtitle']} audio", max_results=1)[0], silent=True, attachment=False)
-                song_count += 1
+                query = f"+{track['title']}, {track['subtitle']} audio"
+                if not process.extractOne(query, queue_titles)[1] >= 88:
+                    song = search_youtube(query=query, max_results=1)[0]
+                    await play(ctx, url=song, silent=True, attachment=False)
+                    song_count += 1
             except:
+                traceback.print_exc()
                 pass
         await channel_to_send.send(autodj_added_songs.replace("%num", str(song_count)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
