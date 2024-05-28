@@ -163,7 +163,7 @@ A list of things that might get added:
 - [ ] Linux/MAC support.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc)
 - [ ] Channel name in the info.
-- [ ] Better queue visualization, better info visualization, etc.
+- [ ] ~~Better queue visualization~~, better info visualization, etc.
 - [ ] Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist)
 - [ ] Interactive buttons to play, resume, etc.
 - [ ] More in-depth equalization.
