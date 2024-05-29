@@ -155,6 +155,7 @@ Features that would be nice to have right now.
 - [ ] Better looking embeds (alongside more information).
 - [X] ~~Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist).~~
 - [ ] Stop bot from pausing when selecting a song.
+- [ ] DJ Role or similar.
 
 ### Medium priority
 Features that are not as important, but would be nice to have.
