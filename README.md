@@ -3,17 +3,20 @@ A *(probably not well made)* music bot for discord, made in python. You can modi
 
 ---
 
-### Pre release: v0.9.0-pre
+### Pre release: v0.9.1-pre
+Added custom playlists.
 Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
+`help` needs to be updated with all the commands and info too.
 
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
 - Accepts playlists.
-- Livestreams (*only in beta*)
-- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason. (*only in beta*)
-- Spotify to youtube conversion (*only in beta*)
-- Auto DJ (*only in beta*)
-- Play from file attachments (*only in beta*)
+- Custom playlists for each server (*only in beta*).
+- Livestreams (*only in beta*).
+- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason (*only in beta*).
+- Spotify to youtube conversion (*only in beta*).
+- Auto DJ (*only in beta*).
+- Play from file attachments (*only in beta*).
 - Raw audio URLs support.
 - Support for shortened links.
 - English and Spanish languages.
@@ -29,6 +32,8 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- New command: `playlist [mode] [name] [query]`, allows users to manage custom playlists (not shared between servers). Use `playlist create [name]` to create a playlist, `playlist add name [song]` to add songs to a playlist or `playlist addqueue name` to add the current queue, and `playlist play name` to add the playlist to the queue. By default, `favs` is created. To see the current playlists created, use `playlist names`, to see the songs on a playlist use `playlist list name`.
+- Improved raw audio read, now less audios should need the `-opt force` option.
 - `PLAYLIST_MAX_TIME` no longer exists, now the duration of all playlists is calculated due to a speed increase by using yt-dlp, it shouldn't take more than a few seconds for very long playlists (+1000 videos).
 - Added N° of videos and queue length into the queue, and now it also loads `QUEUE_VIDEOS_PER_PAGE` (30 by default) videos instead of the full queue at once, improving speeds for long queues.
 - New command: `reload`, reloads the values of the parameters from the PARAMETERS.txt file without having to restart the bot. Only admins can do this (no individual user permission for this).
@@ -113,6 +118,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `volume [volume]`: Changes the volume of the current track, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB)
 - `shuffle`: Randomizes the order of the songs in the queue.
 - `reverse`: Reverses the order of the queue.
+- `playlist [mode] [playlist name] [query]`: Manage custom playlists, available modes: `create`, creates the playlist with the given `playlist name`. `names`, to see the playlists created. `add`, to add the query or current song to the playlist. `addqueue`, to add the current queue to the playlist. `remove`, to remove a song from the playlist by its number position (given as `query`). `clear`, to remove all songs from a playlist. `list` to see the songs on a playlist. `play` to add the playlist to the queue. `delete` to delete a playlist.
 - `autodj [query]`: Periodically gets similar songs from whats playing/the query (if given), and ads them to the queue.
 - `shazam [duration]`: Tries to recognize the currently playing song and gives info about it. "duration" is the length of the clip to search, default is 15 (in seconds).
 - `eq [type] [volume]`: Equalizes the track, types: "bass", "high". Volume in dB, from 0 to 12dB. This will be changed to be more in-depth.
@@ -147,7 +153,7 @@ A list of things that might get added:
 Features that would be nice to have right now.
 - [ ] Linux/MAC support. (will be difficult to test as i don't have neither).
 - [ ] Better looking embeds (alongside more information).
-- [ ] Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist).
+- [X] ~~Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist).~~
 - [ ] Stop bot from pausing when selecting a song.
 
 ### Medium priority
