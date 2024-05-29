@@ -3,8 +3,8 @@ import requests
 from urllib.parse import urlsplit
 
 
-VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse']
-VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download']
+VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse', 'use_playlist']
+VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download', 'use_playlist']
 VAR_ADMIN_PERMS = VAR_AVAILABLE_PERMS.copy()
 
 def write_param():
@@ -57,13 +57,27 @@ def read_param(complete=False):
     return parameters
 
 
+def is_raw_data_url(url):
+    try:
+        response = requests.head(url, allow_redirects=True)
+        content_type = response.headers.get('Content-Type', '').lower()
+        audio_video_mime_types = [
+            'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-m4a'
+            'video/mp4', 'video/x-msvideo', 'video/quicktime', 'video/x-ms-wmv', 'video/x-flv', 'video/x-matroska', 'video/webm',
+            'application/vnd.apple.mpegurl', 'application/x-mpegurl'
+        ]
+        return content_type in audio_video_mime_types
+    except requests.RequestException as e:
+        print(f"An error occurred: {e}")
+        return False
+
+
 def check_link_type(url, checked=False):
     if "&start_radio" in url: return "unknown", None
     yt_vid_match = re.search(r"(?:v=|\/videos\/|embed\/|\.be\/|\/v\/|\/e\/|watch\/|shorts\/|live\/|\/oembed\?url=https:\/\/www\.youtube\.com\/watch\?v=|watch%3Fv%3D|shorts\/|attribution_link\?a=.*&u=\/watch%3Fv%3D|attribution_link\?a=.*&u=https:\/\/www\.youtube\.com\/watch\?v%3D|attribution_link\?a=.*&u=https:\/\/www\.youtube\.com\/embed\/|attribution_link\?a=.*&u=\/embed\/|attribution_link\?a=.*&u=https:\/\/www\.youtube-nocookie\.com\/embed\/|attribution_link\?a=.*&u=\/e\/)([a-zA-Z0-9_-]{11})", url)
     yt_playlist_match = re.search(r"(?:https?:\/\/(?:www\.|m\.)?youtube\.com\/.*[?&]list=|https?:\/\/youtu\.be\/)([a-zA-Z0-9_-]*)", url)
     sp_track_match = re.search(r"open\.spotify\.com(?:\/intl-[a-z]{2})?\/(track|album|artist|playlist)\/([a-zA-Z0-9]+)", url)
     sp_code_match = re.search(r"spotify:(?:(user):[a-zA-Z0-9]+:)?(playlist|track|album):([a-zA-Z0-9]+)", url)
-    raw_audio_match = re.search(r'(?:\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff|ape|opus|mp4)$)|(?:audio%2F(mp3|wav|ogg|flac|m4a|aac|wma|aiff|ape|opus|mp4))', url, re.IGNORECASE)
     link_type, id = "unknown", None
     if yt_playlist_match:
         link_type, id = "playlist", yt_playlist_match.group(1)
@@ -74,7 +88,7 @@ def check_link_type(url, checked=False):
         return f"sp_{sp_track_match.group(1)}", sp_track_match.group(2)
     elif sp_code_match:
         return "sp_"+sp_code_match.group(2), sp_code_match.group(3)
-    elif raw_audio_match:
+    elif is_raw_data_url(url):
         return "raw_audio", None
     elif not checked:
         try:

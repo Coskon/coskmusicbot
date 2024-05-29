@@ -377,6 +377,22 @@ def get_channel_restriction(ctx):
         else (discord.utils.get(ctx.guild.channels, name=options['restricted_to']), False)
 
 
+def write_to_playlist(file_path, playlist):
+    data = read_playlists(file_path, bot)
+    data.update(playlist)
+    with open(file_path, 'w') as f:
+        json.dump(data, f)
+
+
+def read_playlists(file_path, bot):
+    if not os.path.exists(file_path):
+        with open(file_path, 'w') as f:
+            json.dump({'favs': {'songs': [], 'creator': {'avatar': str(bot.user.avatar), 'display_name': str(bot.user.display_name), 'name': str(bot.user.name)}}}, f)
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    return data
+
+
 ## ASYNC FUNCTIONS ##
 async def choice(ctx, embed, reactions):
     try:
@@ -605,6 +621,78 @@ class QueueMenu(discord.ui.View):
         )
         embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`")
         embed.add_field(name=queue_videos, value=f"`{len(dict_queue[self.gid])}`")
+        embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
+        return embed
+
+
+class PlaylistQueueMenu(discord.ui.View):
+    def __init__(self, queue, num_pages, ctx, gid, playlist_title):
+        super().__init__(timeout=None)
+        self.queue = queue
+        self.num_pages = num_pages
+        self.current_page = 1
+        self.gid = gid
+        self.ctx = ctx  # to check for perms
+        self.playlist_title = playlist_title
+
+    @discord.ui.button(label="", emoji="⬅️", style=discord.ButtonStyle.secondary)
+    async def button_prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            if self.current_page > 1:
+                self.current_page -= 1
+            await self.update_message(interaction)
+            return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="❌", style=discord.ButtonStyle.secondary)
+    async def button_cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            await self.update_message(interaction, True)
+            return
+        await interaction.response.defer()
+
+    @discord.ui.button(label="", emoji="➡️", style=discord.ButtonStyle.secondary)
+    async def button_next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.id == interaction.user.id:
+            if self.current_page < self.num_pages:
+                self.current_page += 1
+            await self.update_message(interaction)
+            return
+        await interaction.response.defer()
+
+    async def update_message(self, interaction: discord.Interaction, cancelled=False):
+        if cancelled:
+            await interaction.message.delete()
+            return
+        embed = self.create_embed()
+        await interaction.message.edit(embed=embed, view=self)
+        await interaction.response.defer()
+
+    def create_embed(self):
+        start_index = (self.current_page - 1) * QUEUE_VIDEOS_PER_PAGE
+        end_index = start_index + QUEUE_VIDEOS_PER_PAGE
+        with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
+            self.queue[start_index:end_index] = list(executor.map(get_video_info, self.queue[start_index:end_index]))
+        title_queue = [vid['title'] for vid in self.queue[start_index:end_index]]
+        MAX_LENGTH = 70
+        page_content = [
+            f"{pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1)}. {title[:(MAX_LENGTH-len(str(pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1))))]}"+
+            "..."*int(len(title) > (MAX_LENGTH-len(str(pos+1+QUEUE_VIDEOS_PER_PAGE*(self.current_page-1)))))
+            for pos, title in enumerate(title_queue)
+        ]  # cut titles length
+        if any(isinstance(vid, str) for vid in self.queue):
+            videos_with_length = filter(lambda vid: not isinstance(vid, str), self.queue)
+            not_all = True
+        else:
+            videos_with_length = self.queue.copy()
+            not_all = False
+        embed = discord.Embed(
+            title=self.playlist_title,
+            description="\n".join(page_content),
+            color=EMBED_COLOR
+        )
+        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`")
+        embed.add_field(name=queue_videos, value=f"`{len(self.queue)}`")
         embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
         return embed
 
@@ -1773,7 +1861,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
                         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                                      f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
+                                                      f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
                     voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
             except Exception as e:
@@ -1926,7 +2016,9 @@ async def forward(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -1988,7 +2080,9 @@ async def seek(ctx, time):
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
-                                      f'volume={vid["audio_options"]["volume"]}dB"'
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
         voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -2999,6 +3093,145 @@ async def reload(ctx):
 
         globals().update(parameters)
         print("Parameters succesfully reloaded.")
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='playlist', aliases=['playlists', 'favorites', 'favourites', 'fav', 'favs'])
+async def playlist(ctx, mode, playlist_name="", *, query=""):
+    try:
+        global dict_queue, dict_current_song, dict_current_time
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if not check_perms(ctx, "use_playlist"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        gid = str(ctx.guild.id)
+
+        mode = mode.lower()
+        playlist_name = playlist_name.lower().strip()
+        file_path = f"playlists_{gid}.json"
+        playlists = read_playlists(file_path, bot)
+        if mode in {'playlists', 'names', 'created'}:
+            if not playlists:
+                await channel_to_send.send(no_playlists_created.replace("%server_name", ctx.guild.name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            embed = discord.Embed(
+                title=playlist_list_title,
+                description=playlist_list_desc.replace("%playlists", "\n".join(playlists.keys()))
+            )
+            #embed.set_author(name=ctx.author.global_name, icon_url=ctx.author.avatar)
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not playlist_name:
+            playlist_name = 'favs'
+        if mode == 'create':
+            if playlist_name in playlists.keys():
+                await channel_to_send.send(playlist_already_exists.replace("%pl_name", playlist_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            playlists[playlist_name] = {'songs': [], 'creator': {'avatar': str(ctx.author.avatar), 'display_name': str(ctx.author.display_name), 'name': str(ctx.author.name)}}
+            write_to_playlist(file_path, playlists)
+            await channel_to_send.send(playlist_created.replace("%pl_name", playlist_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not playlist_name in playlists.keys():
+            await channel_to_send.send(playlist_not_found.replace("%pl_name", playlist_name),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if mode == 'add':
+            if not query:
+                dict_queue.setdefault(gid, [])
+                dict_current_song.setdefault(gid, 0)
+                queue = dict_queue[gid]
+                if not voice_client or not queue:
+                    await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                    return
+                current_song = dict_current_song[gid]
+                vid = queue[current_song]
+                playlists[playlist_name]['songs'].append(vid['url'])
+                write_to_playlist(file_path, playlists)
+            else:
+                if not is_url(query):
+                    vid = search_youtube(query, max_results=1)[0]
+                else:
+                    vid = info_from_url(query, is_url=True)
+                if not vid:
+                    await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                    return
+                playlists[playlist_name]['songs'].append(vid['url'])
+                write_to_playlist(file_path, playlists)
+            await channel_to_send.send(added_to_playlist_url.replace("%pl_name", playlist_name).replace("%title", vid['title'])
+                                       .replace("%url", vid['url']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        elif mode in {'queue', 'addqueue', 'queueadd'}:
+            queue = dict_queue[gid]
+            if not queue:
+                await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            for vid in queue:
+                if isinstance(vid, str):
+                    url = vid
+                else:
+                    url = vid['url']
+                playlists[playlist_name]['songs'].append(url)
+            write_to_playlist(file_path, playlists)
+            await channel_to_send.send(queue_added_to_playlist.replace("%pl_name", playlist_name).replace("%num_songs", str(len(queue))),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        elif mode in {'rm', 'remove'}:
+            queue = playlists[playlist_name]['songs']
+            if not queue:
+                await channel_to_send.send(playlist_no_songs.replace("%pl_name", playlist_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            try:
+                query = min(int(query), len(queue))
+            except:
+                await channel_to_send.send(random.choice(invalid_use_texts),
+                                           reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            if query < 0: query = len(queue)
+            if query == 0: query = 1
+            url = playlists[playlist_name]['songs'][query-1]
+            playlists[playlist_name]['songs'].pop(query-1)
+            write_to_playlist(file_path, playlists)
+            await channel_to_send.send(removed_from_playlist.replace("%pl_name", playlist_name).replace("%url", url).replace("%number", str(query)),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        elif mode == 'clear':
+            playlists[playlist_name]['songs'] = []
+            write_to_playlist(file_path, playlists)
+            await channel_to_send.send(playlist_cleared.replace("%pl_name", playlist_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        elif mode in {'list', 'songs', 'videos'}:
+            queue = playlists[playlist_name]['songs']
+            if not queue:
+                await channel_to_send.send(playlist_no_songs.replace("%pl_name", playlist_name),
+                                           reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            num_pages = (len(queue) - 1) // QUEUE_VIDEOS_PER_PAGE + 1
+            view = PlaylistQueueMenu(queue, num_pages, ctx, gid, playlist_name)
+            embed = view.create_embed()
+            await channel_to_send.send(embed=embed, view=view,
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        elif mode == 'play':
+            links = playlists[playlist_name]['songs'].copy()
+            if not links:
+                await channel_to_send.send(playlist_no_songs.replace("%pl_name", playlist_name),
+                                           reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            if not voice_client or not voice_client.is_playing():
+                await play(ctx, url=links[0], search=False, silent=True)
+            else:
+                links.insert(0, links[0])
+            dict_queue[gid] = dict_queue[gid] + links[1:]
+            await channel_to_send.send(playlist_played.replace("%pl_name", playlist_name),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        elif mode in {'delete', 'del'}:
+            data = {}
+            for pl in playlists:
+                if pl == playlist_name:
+                    continue
+                data.update({f"{pl}": playlists[pl]})
+            with open(file_path, 'w') as f:
+                json.dump(data, f)
+            await channel_to_send.send(playlist_deleted.replace("%pl_name", playlist_name),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
