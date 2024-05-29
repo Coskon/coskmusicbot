@@ -22,17 +22,23 @@ activity = discord.Activity(type=discord.ActivityType.listening, name=".play")
 ## CONFIG AND LANGUAGE ##
 config_path = "config.ini"
 config = configparser.ConfigParser()
-if not os.path.exists(config_path):
+try:
+    with open(config_path, "r") as f:
+        config.read_string(f.read())
+except:
     config.add_section("Config")
     config.set("Config", "lang", "en")
     with open(config_path, "w") as f:
         config.write(f)
-with open(config_path, "r") as f:
-    config.read_string(f.read())
 
-language = config.get('Config', 'lang')
-with open(f"lang/{language}.json", "r") as f:
-    lang_dict = json.load(f)
+language = config.get('Config', 'lang').lower()
+try:
+    with open(f"lang/{language}.json", "r") as f:
+        lang_dict = json.load(f)
+except:
+    subprocess.run(["python.exe", "lang/lang.py"])
+    with open(f"lang/{language}.json", "r") as f:
+        lang_dict = json.load(f)
 
 globals().update(lang_dict)
 
@@ -84,6 +90,8 @@ user_cooldowns = {}
 loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
+DEFAULT_OPTIONS = { "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
+                       "custom_prefixes": DEFAULT_PREFIXES, "restricted_to": "ALL_CHANNELS" }
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -sn'
@@ -124,11 +132,19 @@ def get_video_info(video):
         traceback.print_exc()
 
 
-def create_options_file(file_path):
-    if not os.path.exists(file_path):
+def create_options_file(file_path, force=False):
+    if not os.path.exists(file_path) or force:
         with open(file_path, 'w') as f:
-            json.dump({ "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
-                       "custom_prefixes": DEFAULT_PREFIXES, "restricted_to": "ALL_CHANNELS" }, f)
+            json.dump(DEFAULT_OPTIONS, f)
+
+
+def write_options(options, gid, missing_opts: list):
+    file_path = f'options_{gid}.json'
+    for opt in missing_opts:
+        options[opt] = DEFAULT_OPTIONS[opt]
+    with open(file_path, 'w') as f:
+        json.dump(options, f)
+    return options
 
 
 def get_playlist_duration(playlist_url, urls, total_extracted):
@@ -154,8 +170,8 @@ def get_playlist_duration(playlist_url, urls, total_extracted):
     return total_duration, len(videos), total
 
 
-def create_perms_file(ctx, file_path):
-    if not os.path.exists(file_path):
+def create_perms_file(ctx, file_path, force=False):
+    if not os.path.exists(file_path) or force:
         server = ctx.guild
         userdict = dict()
         for member in server.members:
@@ -333,8 +349,13 @@ def change_active(ctx, mode="a"):
 def check_perms(ctx, perm):
     file_path = f'user_perms_{ctx.guild.id}.json'
     create_perms_file(ctx, file_path)
-    with open(file_path, 'r') as f:
-        user_perms = json.load(f)
+    try:
+        with open(file_path, 'r') as f:
+            user_perms = json.load(f)
+    except:
+        create_perms_file(ctx, file_path, force=True)
+        with open(file_path, 'r') as f:
+            user_perms = json.load(f)
     if perm not in user_perms[str(ctx.author.id)]:
         return False
     return True
@@ -343,8 +364,15 @@ def check_perms(ctx, perm):
 def get_channel_restriction(ctx):
     file_path = f'options_{ctx.guild.id}.json'
     create_options_file(file_path)
-    with open(file_path, 'r') as f:
-        options = json.load(f)
+    try:
+        with open(file_path, 'r') as f:
+            options = json.load(f)
+    except:
+        create_options_file(file_path, force=True)
+        with open(file_path, 'r') as f:
+            options = json.load(f)
+    if not 'restricted_to' in options:
+        options = write_options(options, str(ctx.guild.id), ['restricted_to'])
     return (ctx, True) if options['restricted_to'] == 'ALL_CHANNELS' \
         else (discord.utils.get(ctx.guild.channels, name=options['restricted_to']), False)
 
@@ -596,9 +624,15 @@ async def on_message(message):
         gid = message.guild.id
         file_path = f'options_{gid}.json'
         create_options_file(file_path)
-        with open(file_path, 'r') as f:
-            options = json.load(f)
-
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not 'custom_prefixes' in options:
+            options = write_options(options, str(gid), ['custom_prefixes'])
         temp_message = message.content
         succ = False
         for prefix in options['custom_prefixes']:
@@ -823,9 +857,15 @@ async def help(ctx, comando=None):
             comandos = command_commands
             file_path = f'options_{ctx.guild.id}.json'
             create_options_file(file_path)
-            with open(file_path, 'r') as f:
-                options = json.load(f)
-
+            try:
+                with open(file_path, 'r') as f:
+                    options = json.load(f)
+            except:
+                create_options_file(file_path, force=True)
+                with open(file_path, 'r') as f:
+                    options = json.load(f)
+            if not 'custom_prefixes' in options:
+                options = write_options(options, str(ctx.guild.id), ['custom_prefixes'])
             embed = discord.Embed(
                 title=f"{help_title}",
                 description=f"{help_desc}\n{comandos}".replace("%prefix", ', '.join(
@@ -1168,8 +1208,15 @@ async def options(ctx, option="", *, query="", ignore=False):
         file_path = f'options_{ctx.guild.id}.json'
         create_options_file(file_path)
 
-        with open(file_path, 'r') as f:
-            options = json.load(f)
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not all(key in options for key in DEFAULT_OPTIONS):
+            options = write_options(options, str(ctx.guild.id), DEFAULT_OPTIONS.keys())
         search_limit, recomm_limit, custom_prefixes, restricted_to = options['search_limit'], options['recomm_limit'],\
                                                                   options['custom_prefixes'], options['restricted_to']
         original = search_limit, recomm_limit, custom_prefixes
@@ -1244,8 +1291,15 @@ async def search(ctx, tipo, *, query=""):
         )
         file_path = f'options_{ctx.guild.id}.json'
         create_options_file(file_path)
-        with open(file_path, 'r') as f:
-            options = json.load(f)
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not 'search_limit' in options:
+            options = write_options(options, str(ctx.guild.id), ['search_limit'])
         if tipo.lower() in ['youtube', 'yt', 'yotube'] or (tipo not in ['spotify', 'sp', 'spotipy', 'spoti', 'spoty']
                                                            and tipo not in ['youtube', 'yt', 'yotube']):
             try:
@@ -1293,8 +1347,15 @@ async def genre(ctx, *, query=""):
         )
         file_path = f'options_{ctx.guild.id}.json'
         create_options_file(file_path)
-        with open(file_path, 'r') as f:
-            options = json.load(f)
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not 'recomm_limit' in options:
+            options = write_options(options, str(ctx.guild.id), ['recomm_limit'])
         results = utilidades.genre_spotify_search(query, lim=options['recomm_limit'])
         if not query or results[1]:
             texto, i = "", 0
@@ -2728,14 +2789,19 @@ async def add_prefix(ctx, prefix):
         file_path = f'options_{gid}.json'
         create_options_file(file_path)
 
-        with open(file_path, 'r') as f:
-            options = json.load(f)
-
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not 'custom_prefixes' in options:
+            options = write_options(options, gid, ['custom_prefixes'])
         if prefix not in options['custom_prefixes']: options['custom_prefixes'].append(prefix)
-
         embed = discord.Embed(
             title=prefix_add_title,
-            description=prefix_add_desc.replace("%prefix", prefix).replace("%prefixes",
+            description=prefix_add_desc.replace("%prefix", prefix).replace("%prfixes",
                                                                            ' '.join(options['custom_prefixes'])),
             color=EMBED_COLOR
         )
@@ -2759,13 +2825,20 @@ async def del_prefix(ctx, prefix):
         file_path = f'options_{gid}.json'
         create_options_file(file_path)
 
-        with open(file_path, 'r') as f:
-            options = json.load(f)
+        try:
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        except:
+            create_options_file(file_path, force=True)
+            with open(file_path, 'r') as f:
+                options = json.load(f)
+        if not 'custom_prefixes' in options:
+            options = write_options(options, gid, ['custom_prefixes'])
         if prefix in options['custom_prefixes']: options['custom_prefixes'].remove(prefix)
 
         embed = discord.Embed(
             title=prefix_del_title,
-            description=prefix_del_desc.replace("%prefix", prefix).replace("%prefixes",
+            description=prefix_del_desc.replace("%prefix", prefix).replace("%prfixes",
                                                                            ' '.join(options['custom_prefixes'])),
             color=EMBED_COLOR
         )
@@ -2789,8 +2862,13 @@ async def lang(ctx, lng=None):
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
 
-        with open(f"lang/{lng.lower()}.json", "r") as f:
-            lang_dict = json.load(f)
+        try:
+            with open(f"lang/{lng.lower()}.json", "r") as f:
+                lang_dict = json.load(f)
+        except:
+            subprocess.run(["python.exe", "lang/lang.py"])
+            with open(f"lang/{lng.lower()}.json", "r") as f:
+                lang_dict = json.load(f)
 
         config.set("Config", "lang", lng.lower())
         with open(config_path, "w") as f:
