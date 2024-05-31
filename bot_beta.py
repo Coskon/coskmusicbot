@@ -418,6 +418,7 @@ async def choice(ctx, embed, reactions):
 
 async def play_next(ctx):
     global dict_current_song, loop_mode, dict_queue
+    await asyncio.sleep(1)
     gid = str(ctx.guild.id)
     dict_queue.setdefault(gid, list())
     dict_current_song.setdefault(gid, 0)
@@ -2402,10 +2403,12 @@ async def lyrics(ctx, *, query=None):
             dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
-            titulo = queue[current_song]['title']
+            vid = queue[current_song]
+            titulo = vid['title']
         else:
             titulo = query
-        artista = utilidades.get_spotify_artist(titulo, is_song=True)
+        vid_channel = vid['channel'] if vid['channel'] else '???'
+        artista = utilidades.get_spotify_artist(titulo+vid_channel*(vid_channel != "???"), is_song=True)
         cancion = utilidades.get_spotify_song(titulo)
         if not all([artista, cancion]):
             await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2510,7 +2513,9 @@ async def chords(ctx, *, query=""):
             dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
-            query = queue[current_song]['title']
+            vid = queue[current_song]
+            vid_channel = vid['channel'] if vid['channel'] else '???'
+            query = vid['title']+vid_channel*(vid_channel != '???')
         elif not query:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2521,10 +2526,12 @@ async def chords(ctx, *, query=""):
         except: traspose = 0
         msg, tuning_info = utilidades.get_chords_and_lyrics(query, traspose=traspose)
         if not msg:
-            msg = await utilidades.search_cifraclub(query)
+            msg, tuning_info = await utilidades.search_cifraclub(query, traspose=traspose)
         if not msg:
             await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
+        if not tuning_info['tuning_name']:
+            tuning_info['tuning_name'] = '???'
         capo = tuning_info['capo']
         if capo == 'None':
             capo = no_capo_chords

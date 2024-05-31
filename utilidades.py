@@ -1,6 +1,5 @@
 import spotipy, lyricsgenius
 import asyncio, json, requests, os
-import re
 from fuzzywuzzy import fuzz
 from bs4 import BeautifulSoup
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -9,6 +8,7 @@ from pyppeteer import launch
 
 
 GENIUS_API_BASE_URL = "https://api.genius.com"
+CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
 USE_PRIVATE_TOKENS = False
 if USE_PRIVATE_TOKENS:
@@ -251,8 +251,8 @@ def chatgpt(msg, OPENAI_KEY, lang):
     return response.choices[0].message.content
 
 
-async def search_cifraclub(query):
-    browser = await launch()
+async def search_cifraclub(query, traspose=0):
+    browser = await launch(executablePath=CHROME_PATH)
     page = await browser.newPage()
 
     search_url = f"https://www.cifraclub.com/?q={query}"
@@ -273,13 +273,27 @@ async def search_cifraclub(query):
     if result:
         song_url = result.find('a')['href']
         song_page = requests.get(song_url)
-
         if song_page.status_code == 200:
             song_soup = BeautifulSoup(song_page.text, 'html.parser')
             chords_and_lyrics = song_soup.find('pre')
             if chords_and_lyrics:
+                notes = {
+                    0: "E", 1: "F", 2: "F#", 3: "G", 4: "G#", 5: "A",
+                    6: "Bb", 7: "B", 8: "C", 9: "C#", 10: "D", 11: "Eb"
+                }
+                str_soup = str(song_soup)
+                tn = str_soup.find("key: '")
+                tonality = str_soup[tn:tn+20].strip("\n").replace("key: ", "").replace("'", "").replace(",", "").strip()
+                tng = str_soup.find("tuning: '")
+                tuning_value = str_soup[tng:tng+30].strip("\n").replace("tuning: ", "").replace("'", "").replace(",", "").strip()
+                cap = str_soup.find("capo: ")
+                capo = str_soup[cap:cap + 10].strip("\n").replace("capo: ", "").replace(",", "").strip()
                 chords_and_lyrics = str(chords_and_lyrics).replace('<pre>', '').replace('</pre>', '').replace('  ', ' \-').replace('<b>', '`').replace('</b>', '`')
-                return chords_and_lyrics
+                for note in notes:
+                    chords_and_lyrics = chords_and_lyrics.replace(f"`{notes[note]}", f"`%{notes[(note+traspose) % 12]}%")
+                for note in notes:
+                    chords_and_lyrics = chords_and_lyrics.replace(f"`%{notes[note]}%", f"`{notes[note]}")
+                return chords_and_lyrics, {'capo': capo, 'tonality': tonality, 'tuning_name': None, 'tuning_value': tuning_value}
             else:
                 print("Lyrics not found.")
         else:
