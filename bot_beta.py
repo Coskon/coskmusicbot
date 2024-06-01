@@ -769,6 +769,7 @@ async def update_current_time():
 @tasks.loop(seconds=MEMBERS_LEFT_TIMEOUT)
 async def members_left():
     global loop_mode, dict_current_song, dict_current_time, disable_play, active_servers, ctx_dict
+    members_left.stop()
     try:
         if not ctx_dict:
             members_left.stop()
