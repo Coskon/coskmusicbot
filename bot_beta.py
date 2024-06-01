@@ -44,7 +44,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 31:
+if len(parameters.keys()) < 30:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -83,7 +83,7 @@ if SPOTIFY_ID and SPOTIFY_SECRET:
     sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
 
 ## GLOBAL VARIABLES ##
-dict_queue, active_servers, ctx_dict = dict(), dict(), dict()
+dict_queue, active_servers = dict(), dict()
 button_choice, vote_skip_dict, vote_skip_counter = dict(), dict(), dict()
 message_id_dict, majority_dict, ctx_dict_skip = dict(), dict(), dict()
 user_cooldowns = {}
@@ -362,7 +362,8 @@ def check_perms(ctx, perm):
 
 
 def get_channel_restriction(ctx):
-    file_path = f'options_{ctx.guild.id}.json'
+    gid = ctx.guild.id
+    file_path = f'options_{gid}.json'
     create_options_file(file_path)
     try:
         with open(file_path, 'r') as f:
@@ -372,7 +373,7 @@ def get_channel_restriction(ctx):
         with open(file_path, 'r') as f:
             options = json.load(f)
     if not 'restricted_to' in options:
-        options = write_options(options, str(ctx.guild.id), ['restricted_to'])
+        options = write_options(options, str(gid), ['restricted_to'])
     return (ctx, True) if options['restricted_to'] == 'ALL_CHANNELS' \
         else (discord.utils.get(ctx.guild.channels, name=options['restricted_to']), False)
 
@@ -758,58 +759,46 @@ async def on_command_error(ctx, error):
             await channel_to_send.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if before.channel is not None:
+        voice_channel = before.channel
+        if bot.user in voice_channel.members:
+            if len(voice_channel.members) <= 1:
+                server = voice_channel.guild
+                voice_client = discord.utils.get(bot.voice_clients, guild=server)
+                await voice_client.disconnect()
+
+                file_path = f'options_{server.id}.json'
+                create_options_file(file_path)
+                try:
+                    with open(file_path, 'r') as f:
+                        options = json.load(f)
+                except:
+                    create_options_file(file_path, force=True)
+                    with open(file_path, 'r') as f:
+                        options = json.load(f)
+                if not 'restricted_to' in options:
+                    options = write_options(options, str(server.id), ['restricted_to'])
+
+                channel_to_send = None
+                for channel in server.text_channels:
+                    if channel.permissions_for(server.me).send_messages:
+                        channel_to_send = channel
+                        break
+                if not channel_to_send:
+                    return
+                if options['restricted_to'] != 'ALL_CHANNELS':
+                    channel_to_send = discord.utils.get(server.channels, name=options['restricted_to'])
+                await channel_to_send.send(random.choice(nobody_left_texts))
+
+
 ## BOT TASKS ##
 @tasks.loop(seconds=1)
 async def update_current_time():
     global dict_current_time
     for guild in dict_current_time:
         dict_current_time[guild] += 1
-
-
-@tasks.loop(seconds=MEMBERS_LEFT_TIMEOUT)
-async def members_left():
-    global loop_mode, dict_current_song, dict_current_time, disable_play, active_servers, ctx_dict
-    members_left.stop()
-    try:
-        if not ctx_dict:
-            members_left.stop()
-            return
-        temp_ctx = ctx_dict.copy()
-        for gid2 in ctx_dict:
-            ctx = ctx_dict[gid2]
-            voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-            if not voice_client and all(i == 0 for i in list(active_servers.values())):
-                members_left.stop()
-                return
-            if len(voice_client.channel.members) <= 1:
-                try:
-                    channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-                    await channel_to_send.send(random.choice(nobody_left_texts))
-                except:
-                    continue
-                gid = str(ctx.guild.id)
-                loop_mode[gid] = loop_mode.setdefault(gid, "off")
-                if loop_mode[gid] != "off": await loop(ctx, 'off')
-                try:
-                    await voice_client.disconnect()
-                except:
-                    pass
-                change_active(ctx, mode='d')
-                active_servers[gid] = 0
-                dict_queue[gid].clear()
-                del temp_ctx[gid2]
-                disable_play = False
-                dict_current_song[gid], dict_current_time[gid] = -1, 0
-                if all(i == 0 for i in list(active_servers.values())):
-                    members_left.stop()
-                try:
-                    [os.remove(os.path.join(DOWNLOAD_PATH, file)) for file in os.listdir(DOWNLOAD_PATH)]
-                except:
-                    pass
-        ctx_dict = temp_ctx.copy()
-        return
-    except:
-        traceback.print_exc()
 
 
 @tasks.loop(seconds=1)
@@ -1477,7 +1466,7 @@ async def genre(ctx, *, query=""):
 
 @bot.command(name='play', aliases=['p'])
 async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False, silent=False, attachment=True):
-    global dict_current_song, dict_current_time, disable_play, ctx_dict, vote_skip_dict
+    global dict_current_song, dict_current_time, disable_play, vote_skip_dict
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
@@ -1513,10 +1502,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         if not url: return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         change_active(ctx, mode='a')
-        ctx_dict[gid] = ctx
 
         all_chosen = False
-        if not members_left.is_running(): members_left.start()
         if isinstance(url, dict):
             video_select = url.copy()
         else:
@@ -1601,7 +1588,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         await message.delete()
                         if button_choice[gid] < 0:
                             await channel_to_send.send(random.choice(cancel_selection_texts))
-                            if not members_left.is_running(): members_left.start()
                             return
                         if button_choice[gid] == 5:
                             button_choice[gid] = random.randint(0, len(results[(5 * (current_page - 1)):(5 * current_page)]))
@@ -1623,7 +1609,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         disable_play = False
                         if not emoji_choice or emoji_choice == '❌':
                             await channel_to_send.send(random.choice(cancel_selection_texts))
-                            if not members_left.is_running(): members_left.start()
                             return
                         video_select = results[emoji_to_number.get(emoji_choice, None) - 1]
                         if voice_client:
@@ -2996,8 +2981,11 @@ async def restrict(ctx, name=""):
         else:
             channel = discord.utils.get(ctx.guild.channels, name=name)
             if channel:
-                await options(ctx, option="restricted_to", query=name, ignore=True)
-                await channel_to_send.send(restricted_to_channel.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                if channel.permissions_for(ctx.guild.me).send_messages:
+                    await options(ctx, option="restricted_to", query=name, ignore=True)
+                    await channel_to_send.send(restricted_to_channel.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                else:
+                    await channel_to_send.send(cant_access_channel.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             else:
                 await channel_to_send.send(channel_doesnt_exist.replace("%name", name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
@@ -3094,7 +3082,7 @@ async def reverse(ctx):
 async def reload(ctx):
     try:
         parameters = read_param()
-        if len(parameters.keys()) < 31:
+        if len(parameters.keys()) < 30:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()
