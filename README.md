@@ -48,7 +48,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 
 ## Installation Guide
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
-- Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started).
+- Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started). It should have at least [these](https://imgur.com/a/FIytxLn) permissions (integer representation: 36711488), though this might change for future features.
 - Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
 - Run the `run.bat` script to initialize the bot (or `run_beta.bat` to run the beta).
 - **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
