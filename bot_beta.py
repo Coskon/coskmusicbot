@@ -2833,6 +2833,8 @@ async def autodj(ctx, *, url="", ignore=False):
             await fastplay(ctx, url=url)
         start_time = dict_current_time[gid]
         vid = queue[current_song-int(1*ignore)]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         recognized_song = await find_song_shazam(vid['stream_url'], start_time, vid['length'], vid['type'], clip_length=15)
         try:
             related = requests.get(recognized_song['relatedtracksurl']).json()['tracks']
@@ -2847,13 +2849,18 @@ async def autodj(ctx, *, url="", ignore=False):
             tmp_tracks = []
         tracks = tmp_tracks + tracks + related
         loop_mode[gid] = "autodj"
-        queue_titles = [vid['title'] for vid in queue]
+        queue_vids = list(filter(lambda vid: not isinstance(vid, str), queue))
+
+        def clean(title):
+            return re.sub(r'[\(\)\{\}\[\]]|audio|live|official|video|lyrics|lyric', '', title.lower()).strip()
+
+        queue_titles = [clean(vid['title']) for vid in queue_vids]
         song_count = 0
         for track in tracks:
             if song_count >= AUTO_DJ_MAX_ADD: break
             try:
                 query = f"+{track['title']}, {track['subtitle']} audio"
-                if not process.extractOne(query, queue_titles)[1] >= 88:
+                if not process.extractOne(clean(query), queue_titles)[1] >= 88:
                     song = search_youtube(query=query, max_results=1)[0]
                     await play(ctx, url=song, silent=True, attachment=False)
                     song_count += 1
