@@ -1,11 +1,13 @@
 # Coskquin: Cosk Music Bot
-A *(probably not well made)* music bot for discord, made in python. You can modify it for your own purposes, but it wasn't originally meant to be published so it's messy, if you want something to be added you may open an issue with a feature request.
+A music bot for discord made in python. If you want something to be added you may open an issue with a feature request.
 
 ---
 
 ### Pre release: v0.9.1-pre
 Added custom playlists.
+
 Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
+
 `help` needs to be updated with all the commands and info too.
 
 ## Features
@@ -15,7 +17,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - Livestreams (*only in beta*).
 - Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason (*only in beta*).
 - Spotify to youtube conversion (*only in beta*).
-- Auto DJ (*only in beta*).
+- Autoplay/Auto DJ (*only in beta*).
 - Play from file attachments (*only in beta*).
 - Raw audio URLs support.
 - Support for shortened links.
@@ -37,16 +39,9 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - `PLAYLIST_MAX_TIME` no longer exists, now the duration of all playlists is calculated due to a speed increase by using yt-dlp, it shouldn't take more than a few seconds for very long playlists (+1000 videos).
 - Added N° of videos and queue length into the queue, and now it also loads `QUEUE_VIDEOS_PER_PAGE` (30 by default) videos instead of the full queue at once, improving speeds for long queues.
 - New command: `reload`, reloads the values of the parameters from the PARAMETERS.txt file without having to restart the bot. Only admins can do this (no individual user permission for this).
-- Edited some default parameters given the current capabilities. `MAX_VIDEO_LENGTH` is now 60hs, `PLAYLIST_MAX_LIMIT` is 1000 videos, etc.
-- Queue changed, now with buttons to go to different pages, shuffle and reverse the queue.
-- New command: `reverse`, reverses the queue.
-- New command: `download [number]`, gives the link to download the current playing song (or the song specified with "number").
-- Modified the command `chords`, now adding `-t [semitones]` to the query will traspose the chords.
-- Play from file attachment(s): When using the `play` or `fastplay` commands, appart from the url/query, you can now attach audio files to the message (if it doesn't play then it's probably a incompatibility issue, though it seems to accept a lot). They will be added to queue in order of attachment, and they will be added first, before the url/query is processed.
-- `shazam` and `autodj` are now faster for longer videos.
-- New command: `autodj [query]`, alongside new parameter `AUTO_DJ_MAX_ADD`, gets related songs from the one it's currently playing/the user provided via query, and adds them to the queue each time the queue is about to end. By default it adds 3 each time. This automatically overrides the current loop mode, but changing the loop mode will override the autodj, so if you want to stop it you can `leave` or `loop [any loop mode]`.
 
 ## Installation Guide
+- Install [Python](https://www.python.org/downloads/).
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started). It should have at least [these](https://imgur.com/a/FIytxLn) permissions (integer representation: 36711488), though this might change for future features.
 - Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
@@ -76,30 +71,17 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Important
 - This script was only tested on WINDOWS, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
-- ~~The first time playing a song, you might be prompted to login with a youtube account, just follow the instructions in the console. If you don't want to do that (which might block age restricted videos from being played), open the code and change the parameter `USE_LOGIN` to `False`.~~ No longer necessary.
-- ~~Because of a problem with the library `pytube`, even if you login you will not be able to play age restricted videos. To fix this, go to `venv/Lib/site-packages/pytube`, open to edit `innertube.py` and in line 223, change `client='ANDROID_MUSIC'` into `client='ANDROID_CREATOR'`. (if you're using a cloud service, the path to the package might be a little different, try searching for a way to access "site-packages")~~ No longer necessary.
-- ~~If you're using the beta, there is a problem with the library `youtube-dl`. To fix this go to `site-packages/youtube_dl/extractor/youtube.py`, at line 1794 (where it says 'uploader_id': ...) add a # at the beginning (aka comment out the line). If you're not convinced, instead change it to `'uploader_id': self._search_regex(r'/(?:channel|user)/([^/?&#]+)', owner_profile_url, 'uploader id', fatal=False) if owner_profile_url else None,`.~~ No longer necessary.
-
-## Beta disclaimer
-As the name indicates, it's in beta. It will not work as expected, at least not 100% of the time, have that in mind.  
-Current beta feature: *Streaming audio instead of downloading it*.  
-Why is in beta: *Will be released when i make new embeds/messages to make it look better. Bot cutting audio should be fixed.*
 
 ## Limitations
-- ~~Only supports YouTube.~~ Not in the beta.
-- Some commands will not work if the necessary API key is not provided or is incorrect (though those aren't really important).
-- ~~When searching for results on YouTube, you have to wait for all the reactions to appear to be able to choose.~~ Added buttons! (you can still use reactions).
-- ~~It has to download each video mp3, so it's limited by the host internet speed and disk space.~~ Not in the beta (still limited by internet speed).
+- Some commands will not work if the necessary API key is not provided or is incorrect.
 - Bot language is global for all servers (cannot changed individually for each server). This will probably not be changed.
-- User interface creates a separate venv occupying more space. Might change in the future. (couldn't initialize both threads at the same time and make them work correctly so i went with this)
+- User interface creates a separate venv occupying more space. Might change in the future.
 
 ## Known bugs
-- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. (might try to implement a better wait_for to fix this, however the bot isn't meant to be used in a big quantity of servers so it shouldn't be a huge problem)
-- ~~Other users can interact with the buttons when choosing a song, because of this reactions are set by default instead.~~ Not anymore!
-- ~~Anyone (including people outside the voice channel) can vote skip. This will probably not be fixed.~~ I lied, it is fixed.
+- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. This might be fixable, but it's not high priority since the bot is not meant to be used in a lot of servers.
 
 ## Command list
-You can see aliases for each command using the bot. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
+You can see aliases for each command using the bot `help` command. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
 - `help [command]`: Shows more information about the given command. If no command is provided, shows a list of all commands.
 - `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video. You can also add audio attachments to be played (*only in beta*).
 - `fastplay [query]`: Works the same as `play`, but skips having to choose.
@@ -112,7 +94,7 @@ You can see aliases for each command using the bot. If you want to change the na
 - `queue`: Shows the current queue.
 - `remove [number]`: Removes the song at position "number" from the queue.
 - `goto [number]`: Goes to the song at position "number" in the queue.
-- `loop [mode]`: Changes the loop mode (`all/queue` repeats the whole queue, `shuffle/random` randomizes the next song each time, `one` repeats the current song and `off` disables it). If no mode is given, it switches between `all` and `off`.
+- `loop [mode]`: Changes the loop mode (`all/queue` repeats the whole queue, `shuffle/random` randomizes the next song each time, `one` repeats the current song, `autodj` enables autoplay and `off` disables it). If no mode is given, it switches between `all` and `off`.
 - `seek [time]`: Goes to the given time, time can be given either in seconds or in HH:MM:SS format.
 - `forward [time]`: Fast forwards or rewinds the specified time (depends if the time is positive or negative), time can be given either in seconds or in HH:MM:SS format.
 - `volume [volume]`: Changes the volume of the current track, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB)
@@ -163,12 +145,14 @@ Features that are not as important, but would be nice to have.
 - [ ] More audio effects.
 - [ ] Interactive buttons to play, resume, etc.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc).
+- [ ] Audio volume normalizer between all tracks (so that they all play at the same perceived volume) and volume normalization for individual tracks (to remove excessive dynamic range).
 
 ### Low priority
 Features that can wait.
 - [ ] Improve the user interface to modify parameters.
 - [ ] More info to the `steam` command.
 - [ ] More in-depth equalization.
+- [ ] Improved readme with more detail on each commands, all aliases, etc.
 
 
 
