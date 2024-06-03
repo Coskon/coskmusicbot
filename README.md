@@ -34,6 +34,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- Added `mono` and `stereo` commands, as the name indicates it changes the audio to mono or stereo.
 - Added `share`, `sharecomp` and `load` modes to the `playlist` command: Now you can share custom playlists between servers, to get a share code you use `playlist share [playlist name]` or `playlist sharecomp [playlist name]`, and load it using `playlist load [code]`, the difference between `share` and `sharecomp` is that the first method requires both servers to have the bot hosted by the same person because it grabs the data directly from the .json files, the second method gives a base85 encoded version of each url so it should be always compatible (or, if all urls are youtube videos, it gives a string with all video ids concatenated), however the length of the code is very long in this case, luckily you can just download the .txt file it provides and attach it when loading the playlist instead of writing the share code in the command.
 - Added parameter `DISCONNECT_AFTER_QUEUE_END` to indicate if the bot should stay or not when all songs have ended, its `False` by default so the bot stays. This is useful if you plan on playing more songs and are bothered by the bot disconnecting and connecting each time. The queue will not clear with this parameter set to `False`, if you want to clear the queue for now you will need to call the `leave` command (a `clear` command might be added).
 - Changed parameter `SKIP_PRIVATE_SEARCH` to `True` by default. When searching on YouTube with this option enabled, it will be faster but it will not include age restricted videos or livestreams. If you plan on searching for any of these instead of going to YouTube and getting the url then disable this option, however you should probably set the `MAX_SEARCH_SELECT` parameter to a lower value to improve speeds.
@@ -106,6 +107,7 @@ You can see aliases for each command using the bot `help` command. If you want t
 - `shazam [duration]`: Tries to recognize the currently playing song and gives info about it. "duration" is the length of the clip to search, default is 15 (in seconds).
 - `eq [type] [volume]`: Equalizes the track, types: "bass", "high". Volume in dB, from 0 to 12dB. This will be changed to be more in-depth.
 - `bassboost`/`highboost`: Shortcuts for `eq` to boost the bass/high frequencies respectively.
+- `mono`/`stereo`: Convert the audio to mono (single channel) or stereo (two channels). All audio by default is on stereo.
 - `nowplaying`: Shows information about the current song (title, artist, duration). **Requires Spotify API**
 - `lyrics [song]`: Shows the lyrics of the specified song. If no song is given, it shows the lyrics of the song currently playing. **Requires Spotify and Genius API**
 - `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. Traspose the chords adding `-t [semitones]` to the query. **Requires Spotify API**
