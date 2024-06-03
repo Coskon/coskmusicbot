@@ -152,6 +152,8 @@ if True: # only to minimize
     playlist_deleted = "Playlist `%pl_name` deleted."
     removed_from_playlist = "[Song %number](%url) removed from `%pl_name`."
     queue_added_to_playlist = "Current queue added to `%pl_name`, `%num_songs` songs added."
+    shared_playlist_code = "Playlist code: `%code`. Use `playlist load [code]` to load it."
+    playlist_loaded = "Playlist `%pl_name` loaded with `%len` videos."
     missing_parameters = "ATTENTION: Missing parameter, file will be rewritten and parameters will be changed to default.\nPress 'Enter' to proceed."
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
@@ -408,6 +410,8 @@ if True: # only to minimize
     playlist_deleted = "Lista `%pl_name` borrada."
     removed_from_playlist = "[Canción %number](%url) borrada de `%pl_name`."
     queue_added_to_playlist = "Cola actual añadida a `%pl_name`, `%num_songs` canciones añadidas."
+    shared_playlist_code = "Código de la lista: `%code`. Usar `playlist load [código]` para cargarla."
+    playlist_loaded = "Lista `%pl_name` cargada con `%len` videos."
     missing_parameters = "ATENCIÓN: Parámetro faltante, se reescribirá el archivo y los parámetros serán cambiados a sus valores por defecto.\nPresiona 'Enter' para proceder."
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
