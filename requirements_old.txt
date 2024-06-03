@@ -1,0 +1,14 @@
+discord
+PyNaCl
+asyncio
+requests
+librosa
+soundfile
+numpy
+pytube
+spotipy
+lyricsgenius
+fuzzywuzzy
+bs4
+openai
+pyppeteer
