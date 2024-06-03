@@ -44,7 +44,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 30:
+if len(parameters.keys()) < 31:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -198,7 +198,6 @@ def on_song_end(ctx, error):
             dict_current_song[gid] -= 1
         else:
             dict_current_song[gid] += 1
-        go_back = False
         if update_current_time.is_running(): update_current_time.stop()
         bot.loop.create_task(play_next(ctx))
 
@@ -417,12 +416,20 @@ async def choice(ctx, embed, reactions):
         traceback.print_exc()
 
 
-async def play_next(ctx):
-    global dict_current_song, loop_mode, dict_queue
-    await asyncio.sleep(1)
+async def play_next(ctx, rewinded=False):
+    global dict_current_song, loop_mode, dict_queue, disable_play, go_back
+    go_back = False
     gid = str(ctx.guild.id)
+    if discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild) is None:
+        dict_queue[gid] = []
+        dict_current_song[gid] = 0
+        dict_current_time[gid] = 0
+        disable_play = False
+        return
+    await asyncio.sleep(1)
     dict_queue.setdefault(gid, list())
     dict_current_song.setdefault(gid, 0)
+    if rewinded: dict_current_song[gid] -= 1
     queue = dict_queue[gid]
     current_song = dict_current_song[gid]
     auto = False
@@ -436,7 +443,8 @@ async def play_next(ctx):
         elif loop_mode[gid] == "autodj":
             auto = True
         else:
-            await leave(ctx, ignore=True)
+            await leave(ctx, ignore=True, disconnect=DISCONNECT_AFTER_QUEUE_END)
+            return
     if auto:
         await autodj(ctx, ignore=True)
     elif queue:
@@ -608,7 +616,7 @@ class QueueMenu(discord.ui.View):
             for pos, title in enumerate(title_queue)
         ]  # cut titles length
         curr = max(0, dict_current_song[self.gid])
-        if (self.current_page - 1) * QUEUE_VIDEOS_PER_PAGE <= curr <= self.current_page * QUEUE_VIDEOS_PER_PAGE:
+        if (self.current_page - 1) * QUEUE_VIDEOS_PER_PAGE <= curr <= self.current_page * QUEUE_VIDEOS_PER_PAGE and curr < len(self.queue):
             page_content[curr % QUEUE_VIDEOS_PER_PAGE] = f"`{page_content[curr % QUEUE_VIDEOS_PER_PAGE][:MAX_LENGTH-len(queue_current)]+'...'*int(len(page_content[curr % QUEUE_VIDEOS_PER_PAGE][:MAX_LENGTH]) > MAX_LENGTH-3)}{queue_current}"
         if any(isinstance(vid, str) for vid in self.queue):
             videos_with_length = filter(lambda vid: not isinstance(vid, str), dict_queue[self.gid])
@@ -1148,6 +1156,7 @@ async def rewind(ctx):
         go_back = True
         if voice_client.is_paused(): voice_client.resume()
         if voice_client.is_playing(): voice_client.stop()
+        else: await play_next(ctx, rewinded=True)
     except:
         traceback.print_exc()
 
@@ -1180,10 +1189,11 @@ async def join(ctx):
 
 
 @bot.command(name='leave', aliases=['l', 'dis', 'disconnect', 'd'])
-async def leave(ctx, ignore=False):
+async def leave(ctx, *, tmp='', ignore=False, disconnect=True):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         global loop_mode, dict_current_song, dict_current_time, disable_play
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not ignore:
             if not check_perms(ctx, "use_leave"):
                 await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1191,33 +1201,28 @@ async def leave(ctx, ignore=False):
             if not ctx.author.voice:
                 await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
-            bot_vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-            if not bot_vc:
+            if voice_client is None:
                 await channel_to_send.send(random.choice(not_connected_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
-            if ctx.author.voice.channel != bot_vc.channel:
+            if ctx.author.voice.channel != voice_client.channel:
                 await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         gid = str(ctx.guild.id)
-        loop_mode[gid] = loop_mode.setdefault(gid, "off")
-        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        try:
-            if voice_client is not None and voice_client.is_connected():
-                await voice_client.disconnect()
-        except:
-            traceback.print_exc()
-            pass
-        if loop_mode[gid] != "off": await loop(ctx, 'off')
-        change_active(ctx, mode='d')
-        try:
-            dict_queue[gid].clear()
-        except:
-            pass
-        disable_play = False
-        dict_current_song[gid], dict_current_time[gid] = 0, 0
+        if disconnect:
+            loop_mode[gid] = "off"
+            try:
+                if voice_client is not None and voice_client.is_connected():
+                    await voice_client.disconnect()
+            except:
+                traceback.print_exc()
+                pass
+            change_active(ctx, mode='d')
+            dict_queue[gid] = []
+            disable_play = False
+            dict_current_song[gid], dict_current_time[gid] = 0, 0
     except:
         traceback.print_exc()
 
@@ -1487,7 +1492,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 await channel_to_send.send(random.choice(private_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
         else:
-            voice_channel = voice_client.channel
+            try:
+                voice_channel = voice_client.channel
+            except:
+                return
         if voice_client:
             if voice_client.channel != voice_channel:
                 await channel_to_send.send(already_on_another_vc, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2266,6 +2274,7 @@ async def skip(ctx):
         if loop_mode[gid] == 'one': loop_mode[gid] = 'off'
         if voice_client.is_paused(): voice_client.resume()
         if voice_client.is_playing(): voice_client.stop()
+        else: await play_next(ctx)
     except:
         traceback.print_exc()
 
@@ -2831,6 +2840,8 @@ async def autodj(ctx, *, url="", ignore=False):
             return
         if url:
             await fastplay(ctx, url=url)
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        if voice_client is None: return
         start_time = dict_current_time[gid]
         vid = queue[current_song-int(1*ignore)]
         if isinstance(vid, str):
@@ -3089,7 +3100,7 @@ async def reverse(ctx):
 async def reload(ctx):
     try:
         parameters = read_param()
-        if len(parameters.keys()) < 30:
+        if len(parameters.keys()) < 31:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()

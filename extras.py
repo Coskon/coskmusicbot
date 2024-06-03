@@ -36,9 +36,10 @@ def write_param():
                 f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
                 f"MAX_SEARCH_SELECT = 15  # limit of youtube searching when choosing a song\n\n"
                 f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
-                f"SKIP_PRIVATE_SEARCH = False  # whether or not to skip private/age restricted videos when searching\n\n"
+                f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
                 f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
-                f"QUEUE_VIDEOS_PER_PAGE = 30  # how many videos to show per page in the queue")
+                f"QUEUE_VIDEOS_PER_PAGE = 30  # how many videos to show per page in the queue\n\n"
+                f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
 
 
 def read_param(complete=False):
