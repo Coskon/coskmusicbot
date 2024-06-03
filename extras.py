@@ -1,7 +1,7 @@
 import os, re, json, ast
 import requests
 from urllib.parse import urlsplit
-
+from base64 import b85encode, b85decode
 
 VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse', 'use_playlist']
 VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download', 'use_playlist']
@@ -172,3 +172,10 @@ def cut_string(input_string, max_length):
 
     return input_string[:cut_position], input_string[cut_position:]
 
+
+def get_share_code(urls=None, gid="", playlist_name="", shortened=True):
+    if shortened:
+        return playlist_name+"%PL%"+gid
+    if all(check_link_type(url)[0] == "video" for url in urls):
+        return playlist_name+"%PL%"+"".join([url.replace("www.", "").replace(r"https://youtube.com/watch?v=", "") for url in urls])
+    return playlist_name+"%PL%"+b85encode(bytes(";".join([url for url in urls]).encode())).decode()

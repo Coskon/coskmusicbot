@@ -1859,7 +1859,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                                       f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
                                                       f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
-                    voice_client.play(discord.FFmpegPCMAudio(vid['stream_url'] if vtype != 'raw_audio' else url, **updated_options), after=lambda e: on_song_end(ctx, e))
+                    stream_url = vid['stream_url'] if isinstance(vid, dict) else url
+                    voice_client.play(discord.FFmpegPCMAudio(stream_url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
             except Exception as e:
                 print(e)
@@ -3123,7 +3124,8 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
         gid = str(ctx.guild.id)
 
         mode = mode.lower()
-        playlist_name = playlist_name.lower().strip()
+        if not mode in {'load'}: playlist_name = playlist_name.lower()
+        playlist_name = playlist_name.strip()
         file_path = f"playlists_{gid}.json"
         playlists = read_playlists(file_path, bot)
         if mode in {'playlists', 'names', 'created'}:
@@ -3139,6 +3141,47 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
             return
         if not playlist_name:
             playlist_name = 'favs'
+        if mode == 'load':
+            try:
+                if ctx.message.attachments:
+                    str_data = None
+                    for attachment in ctx.message.attachments:
+                        if attachment.filename.endswith('.txt'):
+                            await attachment.save(attachment.filename)
+                            with open(attachment.filename, 'r') as f:
+                                str_data = f.read()
+                            break
+                    if not str_data:
+                        str_data = playlist_name
+                else:
+                    str_data = playlist_name
+                loaded_name, loaded_gid = str_data.rsplit("%PL%", 1)
+                if not loaded_gid.isnumeric():
+                    loaded_urls = []
+                    b85 = False
+                    for i in range(0, len(loaded_gid), 11):
+                        video_id = loaded_gid[i:i + 11]
+                        if not re.match("^[a-zA-Z0-9_-]{11}$", video_id):
+                            b85 = True
+                            break
+                        loaded_urls.append("https://youtube.com/watch?v="+video_id)
+                    if b85:
+                        loaded_urls = b85decode(loaded_gid).decode().split(";")
+                    loaded_playlist = {'songs': loaded_urls, 'creator': {'avatar': str(ctx.author.avatar), 'display_name': str(ctx.author.display_name), 'name': str(ctx.author.name)}}
+                else:
+                    playlist_path = f"playlists_{loaded_gid}.json"
+                    loaded_playlist = read_playlists(playlist_path, bot)[loaded_name]
+                    loaded_urls = loaded_playlist['songs']
+                playlists[loaded_name] = {}
+                playlists[loaded_name].update(loaded_playlist)
+                write_to_playlist(file_path, playlists)
+            except:
+                traceback.print_exc()
+                await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
+            await channel_to_send.send(playlist_loaded.replace("%pl_name", loaded_name).replace("%len", str(len(loaded_urls))),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
         if mode == 'create':
             if playlist_name in playlists.keys():
                 await channel_to_send.send(playlist_already_exists.replace("%pl_name", playlist_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -3151,6 +3194,14 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
             await channel_to_send.send(playlist_not_found.replace("%pl_name", playlist_name),
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
+        if mode == 'share':
+            await channel_to_send.send(shared_playlist_code.replace("%code", get_share_code(gid=gid, playlist_name=playlist_name)),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        if mode in {'sharecomp', 'sharecomplete', 'compshare', 'completeshare', 'fullshare', 'sharefull'}:
+            share_code = get_share_code(urls=playlists[playlist_name]['songs'], playlist_name=playlist_name, shortened=False)
+            with open(r"code.txt", "w") as f:
+                f.write(share_code)
+            await channel_to_send.send(file=discord.File(r"code.txt"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         if mode == 'add':
             if not query:
                 dict_queue.setdefault(gid, [])
