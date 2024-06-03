@@ -45,7 +45,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started). It should have at least [these](https://imgur.com/a/FIytxLn) permissions (integer representation: 36711488), though this might change for future features.
 - Put your Discord App Key (and any other of the optional api keys) on the `API_KEYS.txt` file.
-- Run the `run.bat` script to initialize the bot (or `run_beta.bat` to run the beta).
+- Run the `run.bat` script to initialize the bot.
 - **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (Windows):
     ```console
     python.exe -m venv venv
@@ -84,7 +84,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Command list
 You can see aliases for each command using the bot `help` command. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
 - `help [command]`: Shows more information about the given command. If no command is provided, shows a list of all commands.
-- `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video. You can also add audio attachments to be played (*only in beta*).
+- `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video. You can also add audio attachments to be played.
 - `fastplay [query]`: Works the same as `play`, but skips having to choose.
 - `leave`: Disconnects the bot from the voice channel and clears the song queue.
 - `skip`: Skips to the next song, leaves if its the last song (unless loop is enabled). For users without permission, initiates a skip vote.
@@ -108,11 +108,11 @@ You can see aliases for each command using the bot `help` command. If you want t
 - `bassboost`/`highboost`: Shortcuts for `eq` to boost the bass/high frequencies respectively.
 - `nowplaying`: Shows information about the current song (title, artist, duration). **Requires Spotify API**
 - `lyrics [song]`: Shows the lyrics of the specified song. If no song is given, it shows the lyrics of the song currently playing. **Requires Spotify and Genius API**
-- `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. Traspose the chords adding `-t [semitones]` to the query (*only in beta*). **Requires Spotify API**
+- `chords [song]`: Shows the chords of the specified song. If no song is given, it shows the chords of the song currently playing. Traspose the chords adding `-t [semitones]` to the query. **Requires Spotify API**
 - `songs [number] [artist]`: Shows the top "number" (10 by default) songs from the specified artist. If no artist is given, it will retrieve it from the song currently playing. **Requires Spotify API**
 - `genre [genre]`: Shows songs of the given genre. If no genre is specified, shows the list of available genres to search. **Requires Spotify API**
 - `search [platform] [query]`: Searches in youtube (by default) or spotify the given query and shows the results. **Requires Spotify API**
-- `pitch [semitones] [speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). You can also change the speed of the track, by default it will keep the same speed (*only in beta*).
+- `pitch [semitones] [speed]`: Changes the pitch of the song currently playing (positive for higher pitch, negative for lower pitch). You can also change the speed of the track, by default it will keep the same speed.
 - `nightcore`/`daycore`: Shortcuts for `pitch` to pitch up and speed up/pitch down and slow down the song respectively.
 - `download [number]`: Gives a link to download the song currently playing, or the one specified in `number`.
 - `steam [user]`: Shows the steam profile of the specified user.
