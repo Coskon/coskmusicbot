@@ -251,7 +251,7 @@ def fetch_info(result):
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
@@ -327,14 +327,14 @@ def info_from_url(query, is_url=True, not_youtube=False):
             'obj': None, 'title': title, 'channel': channel, 'views': views,
             'length': dur, 'id': None, 'thumbnail_url': thumb,
             'url': url, 'stream_url': stream_url, 'channel_url': None, 'type': vtype,
-            'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+            'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
             # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
         }
     return {
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
@@ -508,6 +508,51 @@ async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
     out = await shazam.recognize(r'downloads/shazam.mp3')
     if not out or not out['matches']: return None
     return out['track']
+
+
+async def change_channels(ctx, channels):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_change_channels"):
+            await channel_to_send.send(random.choice(insuff_perms_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        global dict_queue, dict_current_song, dict_current_time
+        if not ctx.author.voice:
+            await channel_to_send.send(random.choice(not_in_vc_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+        gid = str(ctx.guild.id)
+        dict_queue.setdefault(gid, list())
+        dict_current_song.setdefault(gid, 0)
+        queue = dict_queue[gid]
+        current_song = dict_current_song[gid]
+        if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
+            await channel_to_send.send(random.choice(different_channel_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if not voice_client or not queue:
+            await channel_to_send.send(random.choice(nothing_on_texts),
+                                       reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        vid = queue[current_song]
+        if voice_client.is_playing(): voice_client.pause()
+        channels = min(max(int(channels), 1), 2)
+        vid['audio_options']['channels'] = channels
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
+        updated_options = FFMPEG_OPTIONS.copy()
+        updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                                      f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
+                                      f'volume={vid["audio_options"]["volume"]}dB, ' \
+                                      f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
+                                      f'equalizer=f=8000:width_type=h:width=3000:g={vid["audio_options"]["high"]}"'
+        voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
+                          after=lambda e: on_song_end(ctx, e))
+        await channel_to_send.send(change_channels_mode.replace("%mode", 'mono' if channels == 1 else 'stereo'), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+    except:
+        traceback.print_exc()
 
 
 bot = commands.Bot(command_prefix="DEF_PREFIX", activity=activity, intents=intents, help_command=None,
@@ -1630,7 +1675,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 video_select = {
                     'obj': None, 'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None,
                     'url': url, 'type': None, 'stream_url': None, 'views': None, 'channel_url': None,
-                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                     # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 }
         end = False
@@ -1711,7 +1756,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                                         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
                 album = sp.album(vid_id)
@@ -1748,7 +1793,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
                         'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
-                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                        'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                                         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
                 playlist = sp.playlist(vid_id)
@@ -1841,7 +1886,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     'obj': None, 'title': 'Raw audio file', 'channel': 'Someone', 'views': 'No views',
                     'length': 0, 'id': 'none', 'thumbnail_url': None, 'url': video, 'stream_url': video,
                     'channel_url': None, 'type': 'raw_audio',
-                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'bass': 0.0, 'high': 0.0}
+                    'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                     # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 })
             else:
@@ -1854,7 +1899,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if not voice_client.is_playing():
                     updated_options = FFMPEG_OPTIONS.copy()
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
-                        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+                        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options'][
+                                                                 'channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
+                        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                                       f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
@@ -2009,8 +2056,9 @@ async def forward(ctx, time):
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                       f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
@@ -2073,8 +2121,9 @@ async def seek(ctx, time):
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                       f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
@@ -2606,9 +2655,10 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         vid['audio_options']['pitch'] = pitch_factor
         vid['audio_options']['speed'] = speed
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                       f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
@@ -2662,9 +2712,10 @@ async def volume(ctx, volume: str):
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
         vid['audio_options']['volume'] = vol_db
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                       f'equalizer=f=120:width_type=q:width=3:g={vid["audio_options"]["bass"]}, ' \
@@ -2719,9 +2770,10 @@ async def eq(ctx, eqtype="bass", strength="5", silent=False):
             return
         if voice_client.is_playing(): voice_client.pause()
         vid['audio_options'][eqtype] = strength
+        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
         updated_options['before_options'] += f' -ss {dict_current_time[gid]}'
-        updated_options['options'] += f' -filter:a "rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
+        updated_options['options'] += f' -filter:a "{channels_info},rubberband=pitch={vid["audio_options"]["pitch"]}, ' \
                                       f'rubberband=tempo={vid["audio_options"]["speed"]}, ' \
                                       f'volume={vid["audio_options"]["volume"]}dB, ' \
                                       f'equalizer=f=300:width_type=h:width=120:g={vid["audio_options"]["bass"]}, ' \
@@ -2753,6 +2805,22 @@ async def bassboost(ctx):
 async def highboost(ctx):
     try:
         await eq(ctx, eqtype='high', strength='8', silent=True)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='mono')
+async def mono(ctx):
+    try:
+        await change_channels(ctx, channels=1)
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='stereo')
+async def stereo(ctx):
+    try:
+        await change_channels(ctx, channels=2)
     except:
         traceback.print_exc()
 
