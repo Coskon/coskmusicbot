@@ -13,12 +13,12 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
 - Accepts playlists.
-- Custom playlists for each server (*only in beta*).
-- Livestreams (*only in beta*).
-- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason (*only in beta*).
-- Spotify to youtube conversion (*only in beta*).
-- Autoplay/Auto DJ (*only in beta*).
-- Play from file attachments (*only in beta*).
+- Custom playlists for each server.
+- Livestreams.
+- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason.
+- Spotify to youtube conversion.
+- Autoplay/Auto DJ.
+- Play from file attachments.
 - Raw audio URLs support.
 - Support for shortened links.
 - English and Spanish languages.
@@ -39,17 +39,14 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - Changed parameter `SKIP_PRIVATE_SEARCH` to `True` by default. When searching on YouTube with this option enabled, it will be faster but it will not include age restricted videos or livestreams. If you plan on searching for any of these instead of going to YouTube and getting the url then disable this option, however you should probably set the `MAX_SEARCH_SELECT` parameter to a lower value to improve speeds.
 - New command: `playlist [mode] [name] [query]`, allows users to manage custom playlists (not shared between servers). Use `playlist create [name]` to create a playlist, `playlist add name [song]` to add songs to a playlist or `playlist addqueue name` to add the current queue, and `playlist play name` to add the playlist to the queue. By default, `favs` is created. To see the current playlists created, use `playlist names`, to see the songs on a playlist use `playlist list name`.
 - Improved raw audio read, now less audios should need the `-opt force` option.
-- `PLAYLIST_MAX_TIME` no longer exists, now the duration of all playlists is calculated due to a speed increase by using yt-dlp, it shouldn't take more than a few seconds for very long playlists (+1000 videos).
-- Added N° of videos and queue length into the queue, and now it also loads `QUEUE_VIDEOS_PER_PAGE` (30 by default) videos instead of the full queue at once, improving speeds for long queues.
-- New command: `reload`, reloads the values of the parameters from the PARAMETERS.txt file without having to restart the bot. Only admins can do this (no individual user permission for this).
 
 ## Installation Guide
 - Install [Python](https://www.python.org/downloads/).
 - Clone or [download](https://github.com/Coskon/coskmusicbot/archive/refs/heads/main.zip) the repository.
 - Create a [Discord Application](https://discord.com/developers/docs/quick-start/getting-started). It should have at least [these](https://imgur.com/a/FIytxLn) permissions (integer representation: 36711488), though this might change for future features.
-- Put your discord api key (and any other of the optional api keys) on the `API_KEYS.txt` file.
+- Put your Discord App Key (and any other of the optional api keys) on the `API_KEYS.txt` file.
 - Run the `run.bat` script to initialize the bot (or `run_beta.bat` to run the beta).
-- **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (windows):
+- **(If `run.bat` didn't work)** Open a CMD on the project folder and input the following commands (Windows):
     ```console
     python.exe -m venv venv
     venv\Scripts\activate
@@ -60,6 +57,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - **(Optional)** Run `gradio_ui.bat` to initialize the user interface to modify some options and parameters, or change them in `PARAMETERS.txt`.
 
 ### Guide for cloud services
+WARNING: This uses an outdated version of the bot.
 If you don't want to have your computer running the bot or you want/need for it to be always active, you may need to use a cloud service.
 I found "Replit" as a free alternative (you can go [here](https://replit.com/@mcgamescompany/Cosk-Music-Bot?v=1#main.py) and press "Use Template"), so i'll use that as the base, but following the general guide should work.
 - Go to your chosen service and create a project. For Replit, select the "python discord bot" template.
@@ -72,7 +70,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 - Done! For Replit, you can just press "Run" (make sure `bot.py` is renamed to `main.py`) to run your bot.
 
 ## Important
-- This script was only tested on WINDOWS, it might not work on other OS.
+- This script was only tested on Windows, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
 
 ## Limitations
