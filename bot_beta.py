@@ -2106,7 +2106,7 @@ async def loop(ctx, mode="change"):
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
         if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
-        if mode not in ['queue', 'all', 'shuffle', 'random', 'one', 'off']:
+        if mode not in {'queue', 'all', 'shuffle', 'random', 'one', 'off', 'autodj'}:
             await channel_to_send.send(not_loop_mode.replace("%mode", str(mode)),
                            reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2809,7 +2809,7 @@ async def shazam(ctx, clip_length = '15'):
         traceback.print_exc()
 
 
-@bot.command(name='auto', aliases=['autodj', 'autoplaylist', 'autopl'])
+@bot.command(name='auto', aliases=['autodj', 'autoplaylist', 'autopl', 'autoplay'])
 async def autodj(ctx, *, url="", ignore=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
