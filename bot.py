@@ -537,6 +537,8 @@ async def change_channels(ctx, channels):
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         if voice_client.is_playing(): voice_client.pause()
         channels = min(max(int(channels), 1), 2)
         vid['audio_options']['channels'] = channels
@@ -1290,6 +1292,8 @@ async def info(ctx):
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             vid = queue[current_song]
+            if isinstance(vid, str):
+                dict_queue[gid][current_song] = vid = info_from_url(vid)
             titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
             vid_channel = vid['channel'] if vid['channel'] else '???'
             if SPOTIFY_SECRET and SPOTIFY_ID: artista = utilidades.get_spotify_artist(titulo+vid_channel*(vid_channel != "???"), is_song=True)
@@ -2001,6 +2005,8 @@ async def remove(ctx, index):
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[index]
+        if isinstance(vid, str):
+            vid = info_from_url(vid)
         queue.pop(index)
         await channel_to_send.send(removed_from_queue.replace("%title", vid['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         dict_current_time[gid] = 0
@@ -2037,6 +2043,8 @@ async def forward(ctx, time):
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         if vid['type'] == 'live':
             await channel_to_send.send(cannot_change_time_live.replace("%command", "forward/backward"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2106,6 +2114,8 @@ async def seek(ctx, time):
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         if vid['type'] == 'live':
             await channel_to_send.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2448,6 +2458,8 @@ async def lyrics(ctx, *, query=None):
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             vid = queue[current_song]
+            if isinstance(vid, str):
+                dict_queue[gid][current_song] = vid = info_from_url(vid)
             titulo = vid['title']
         else:
             titulo = query
@@ -2558,6 +2570,8 @@ async def chords(ctx, *, query=""):
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             vid = queue[current_song]
+            if isinstance(vid, str):
+                dict_queue[gid][current_song] = vid = info_from_url(vid)
             vid_channel = vid['channel'] if vid['channel'] else '???'
             query = vid['title']+vid_channel*(vid_channel != '???')
         elif not query:
@@ -2651,6 +2665,8 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
             return
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         if not semitones: semitones = 0  # return to default
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         vid['audio_options']['pitch'] = pitch_factor
@@ -2711,6 +2727,8 @@ async def volume(ctx, volume: str):
             return
         if voice_client.is_playing(): voice_client.pause()
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         vid['audio_options']['volume'] = vol_db
         channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = FFMPEG_OPTIONS.copy()
@@ -2760,6 +2778,8 @@ async def eq(ctx, eqtype="bass", strength="5", silent=False):
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         try:
             strength = str(min(max(float(strength), 0), 12))
             if eqtype not in {'bass', 'high'}:
@@ -2844,6 +2864,8 @@ async def shazam(ctx, clip_length = '15'):
         dict_current_time.setdefault(gid, 0)
         start_time = dict_current_time[gid]
         vid = queue[current_song]
+        if isinstance(vid, str):
+            dict_queue[gid][current_song] = vid = info_from_url(vid)
         msg = await channel_to_send.send(recognizing_song, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         recognized_song = await find_song_shazam(vid['stream_url'], start_time, vid['length'], vid['type'], clip_length=float(clip_length))
         if not recognized_song:
@@ -3279,6 +3301,8 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                     return
                 current_song = dict_current_song[gid]
                 vid = queue[current_song]
+                if isinstance(vid, str):
+                    dict_queue[gid][current_song] = vid = info_from_url(vid)
                 playlists[playlist_name]['songs'].append(vid['url'])
                 write_to_playlist(file_path, playlists)
             else:
