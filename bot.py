@@ -2487,9 +2487,11 @@ async def lyrics(ctx, *, query=None):
             if isinstance(vid, str):
                 dict_queue[gid][current_song] = vid = info_from_url(vid)
             titulo = vid['title']
+            vid_channel = vid['channel'] if vid['channel'] else '???'
         else:
             titulo = query
-        vid_channel = vid['channel'] if vid['channel'] else '???'
+            vid_channel = '???'
+
         artista = utilidades.get_spotify_artist(titulo+vid_channel*(vid_channel != "???"), is_song=True)
         cancion = utilidades.get_spotify_song(titulo)
         if not all([artista, cancion]):

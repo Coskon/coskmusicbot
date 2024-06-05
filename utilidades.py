@@ -344,8 +344,11 @@ def get_chords_and_lyrics(query, traspose=0):
                     capo = tuning_info['capo']
                 except:
                     capo = None
-                tonality, tuning_name, tuning_value = tuning_info['tonality'],\
-                                                            tuning_info['tuning']['name'], tuning_info['tuning']['value']
+                try:
+                    tonality = tuning_info['tonality']
+                except:
+                    tonality = 'Unknown'
+                tuning_name, tuning_value = tuning_info['tuning']['name'], tuning_info['tuning']['value']
                 chords_and_lyrics = content_json.get('store', {}).get('page', {}).get('data', {}).get('tab_view', {}).get('wiki_tab', '').get('content', {})
                 if "[Intro]" in chords_and_lyrics: chords_and_lyrics = chords_and_lyrics[chords_and_lyrics.find("[Intro]"):]
                 chords_and_lyrics = chords_and_lyrics.replace('  ', ' \-').replace('[ch]', '`').replace('[/ch]', '`').replace('[tab]', '').replace('[/tab]', '')
