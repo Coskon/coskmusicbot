@@ -1863,7 +1863,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 with ThreadPoolExecutor(max_workers=NUM_THREADS_HIGH) as executor:
                     links = list(filter(None, executor.map(fetch_video_data, tracks)))
             elif vtype == 'raw_audio':
-                links = [info_from_url(url)]
+                if isinstance(url, dict):
+                    links = [url]
+                else:
+                    links = [info_from_url(url)]
             if vtype in {'video', 'live'}:
                 if not isinstance(url, dict):
                     links = [info_from_url(video_select['url'])]
