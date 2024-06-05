@@ -2,7 +2,8 @@ import discord
 import asyncio
 import utilidades
 import spotipy
-import os, random, re, json, traceback, time, configparser, math
+import random, traceback, time, configparser, math
+from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
 from pydub import AudioSegment
 from io import BytesIO
@@ -90,6 +91,7 @@ user_cooldowns = {}
 loop_mode = dict()
 dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
+INV_CHAR_PADDING = "᲼"*5
 DEFAULT_OPTIONS = { "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
                        "custom_prefixes": DEFAULT_PREFIXES, "restricted_to": "ALL_CHANNELS" }
 FFMPEG_OPTIONS = {
@@ -230,6 +232,18 @@ def on_song_end(ctx, error):
         bot.loop.create_task(play_next(ctx))
 
 
+def get_channel_picture(channel_url):
+    response = requests.get(channel_url)
+    if response.status_code == 200:
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+        meta_tag = soup.find('meta', {'property': 'og:image'})
+        if meta_tag:
+            image_url = meta_tag.get('content')
+            return image_url
+    return None
+
+
 def get_stream_url(stream_info: dict, itags: list):
     for itag in itags:
         stream_url = next((d.get("url") for d in stream_info if d.get("itag") == itag), None)
@@ -283,7 +297,8 @@ def fetch_info(result):
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': channels, 'bass': 0.0, 'high': 0.0}
+        'channel_image': get_channel_picture(result.channel_url), 'audio_options':
+            {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': channels, 'bass': 0.0, 'high': 0.0}
         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
@@ -362,7 +377,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
         return {
             'obj': None, 'title': title, 'channel': channel, 'views': views,
             'length': dur, 'id': None, 'thumbnail_url': thumb,
-            'url': url, 'stream_url': stream_url, 'channel_url': None, 'type': vtype,
+            'url': url, 'stream_url': stream_url, 'channel_url': None, 'type': vtype, 'channel_image': None,
             'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': channels, 'bass': 0.0, 'high': 0.0}
             # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
         }
@@ -374,7 +389,8 @@ def info_from_url(query, is_url=True, not_youtube=False):
         'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
-        'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': channels, 'bass': 0.0, 'high': 0.0}
+        'channel_image': get_channel_picture(result.channel_url), 'audio_options':
+            {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': channels, 'bass': 0.0, 'high': 0.0}
         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
     }
 
@@ -583,7 +599,6 @@ async def change_channels(ctx, channels):
         if voice_client.is_playing(): voice_client.pause()
         channels = min(max(int(channels), 1), 2)
         vid['audio_options']['channels'] = channels
-        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = get_updated_options(vid, dict_current_time[gid])
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                           after=lambda e: on_song_end(ctx, e))
@@ -711,8 +726,8 @@ class QueueMenu(discord.ui.View):
             description="\n".join(page_content),
             color=EMBED_COLOR
         )
-        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`")
-        embed.add_field(name=queue_videos, value=f"`{len(dict_queue[self.gid])}`")
+        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`"+INV_CHAR_PADDING)
+        embed.add_field(name=queue_videos, value=f"`{len(dict_queue[self.gid])}`"+INV_CHAR_PADDING)
         embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
         return embed
 
@@ -779,12 +794,12 @@ class PlaylistQueueMenu(discord.ui.View):
             videos_with_length = self.queue.copy()
             not_all = False
         embed = discord.Embed(
-            title=self.playlist_title,
+            title="Playlist: "+self.playlist_title,
             description="\n".join(page_content),
             color=EMBED_COLOR
         )
-        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`")
-        embed.add_field(name=queue_videos, value=f"`{len(self.queue)}`")
+        embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`"+INV_CHAR_PADDING)
+        embed.add_field(name=queue_videos, value=f"`{len(self.queue)}`"+INV_CHAR_PADDING)
         embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
         return embed
 
@@ -1713,7 +1728,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             else:
                 video_select = {
                     'obj': None, 'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None,
-                    'url': url, 'type': None, 'stream_url': None, 'views': None, 'channel_url': None,
+                    'url': url, 'type': None, 'stream_url': None, 'views': None, 'channel_url': None, 'channel_image': None,
                     'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                     # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 }
@@ -1794,7 +1809,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     return {
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
-                        'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
+                        'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id, 'channel_image': get_channel_picture(video.channel_url),
                         'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                                         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
@@ -1831,7 +1846,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     return {
                         'obj': video, 'title': video.title, 'views': video.views, 'channel': video.author,
                         'url': video.watch_url, 'stream_url': stream_url, 'thumbnail_url': video.thumbnail_url,
-                        'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id,
+                        'channel_url': video.channel_url, 'length': int(video.length), 'id': video.video_id, 'channel_image': get_channel_picture(video.channel_url),
                         'type': 'video', 'audio_options': {'pitch': 1.0, 'speed': 1.0, 'volume': 0.0, 'channels': 2, 'bass': 0.0, 'high': 0.0}
                                         # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                     }
@@ -1875,20 +1890,27 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
         if vid['type'] == 'live': duracion = 'LIVE'
         embed = discord.Embed(
-            title=song_chosen_title,
+            title="",
             description=song_chosen_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace(
-                "%ch_name", voice_channel.name),
+                "%ch_name", voice_channel.name).replace("%url", vid['url']),
             color=EMBED_COLOR
         )
         embed2 = discord.Embed(
-            title=added_queue_title,
-            description=added_queue_desc.replace("%url", vid['url']).replace("%title", titulo).replace("%duration",
-                                                                                                     str(duracion)),
+            title="",
+            description=added_queue_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace("%url", vid['url']),
             color=EMBED_COLOR
         )
-        embed.add_field(name=playing_title,
-                        value=playing_desc.replace("%url", vid['url']).replace("%title", titulo).replace("%duration", str(duracion)),
-                        inline=False)
+        embed.set_author(name=song_chosen_title, icon_url=ctx.author.avatar)
+        embed.add_field(name=word_title, value=f"*{titulo}*"+INV_CHAR_PADDING)
+        embed.add_field(name=word_duration, value=f"`{duracion}`"+INV_CHAR_PADDING)
+        embed.add_field(name=word_views, value=f"`{format_views(vid['views'])}`"+INV_CHAR_PADDING)
+        embed.set_footer(text=f"{vid['channel']}", icon_url=vid['channel_image'])
+
+        embed2.set_author(name=added_queue_title, icon_url=ctx.author.avatar)
+        embed2.add_field(name=word_title, value=f"*{titulo}*"+INV_CHAR_PADDING)
+        embed2.add_field(name=word_duration, value=f"`{duracion}`"+INV_CHAR_PADDING)
+        embed2.add_field(name=word_views, value=f"`{format_views(vid['views'])}`"+INV_CHAR_PADDING)
+        embed2.set_footer(text=f"{vid['channel']}", icon_url=vid['channel_image'])
         img = None
         if gif and TENOR_API_KEY: img = search_gif(titulo, TENOR_API_KEY)
         if not img: img = vid['thumbnail_url']
@@ -1924,8 +1946,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if not voice_client.is_playing():
                     updated_options = FFMPEG_OPTIONS.copy()
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
-                        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options'][
-                                                                 'channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
                         updated_options['options'] += get_updated_options(vid, dict_current_time[gid], get_options_only=True)
                     stream_url = vid['stream_url'] if isinstance(vid, dict) else url
                     voice_client.play(discord.FFmpegPCMAudio(stream_url, **updated_options), after=lambda e: on_song_end(ctx, e))
@@ -2081,7 +2101,6 @@ async def forward(ctx, time):
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
-        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = get_updated_options(vid, dict_current_time[gid])
         voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -2142,7 +2161,6 @@ async def seek(ctx, time):
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
-        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = get_updated_options(vid, dict_current_time[gid])
         voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
@@ -2676,7 +2694,6 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         vid['audio_options']['pitch'] = pitch_factor
         vid['audio_options']['speed'] = speed
-        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = get_updated_options(vid, dict_current_time[gid])
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
@@ -2729,7 +2746,6 @@ async def volume(ctx, volume: str):
         if isinstance(vid, str):
             dict_queue[gid][current_song] = vid = info_from_url(vid)
         vid['audio_options']['volume'] = vol_db
-        channels_info = 'pan=1c|c0=c0+c1' if vid['audio_options']['channels'] == 1 else 'pan=stereo|c0=c0|c1=c1'
         updated_options = get_updated_options(vid, dict_current_time[gid])
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))

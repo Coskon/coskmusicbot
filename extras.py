@@ -164,6 +164,11 @@ def format_title(title):
     return new_title.replace(" ", "_") if new_title != '' else 'NoTitle'
 
 
+def format_views(views):
+    views = str(views)[::-1]
+    return " ".join([views[i:i + 3] for i in range(0, len(views), 3)])[::-1]
+
+
 def cut_string(input_string, max_length):
     if len(input_string) <= max_length:
         return input_string

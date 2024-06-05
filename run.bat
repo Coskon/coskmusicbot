@@ -12,6 +12,7 @@ IF EXIST "%VENV_NAME%\Scripts\activate.bat" (
 
 CALL "%VENV_NAME%\Scripts\activate"
 pip install -r requirements.txt
+pip install --upgrade yt-dlp
 
 python.exe lang\lang.py
 python.exe bot.py

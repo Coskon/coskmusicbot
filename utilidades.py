@@ -82,11 +82,16 @@ def convert_seconds(seconds):
         return "{:0}:{:02d}:{:02d}".format(int(hours), int(minutes), int(seconds))
 
 
-def get_bar(total, progress, length=20, bar_complete='█', bar_empty='░', bar_middle='█'):
+def get_bar(total, progress, length=18, bar_empty="౼ ", bar_middle="◉ ", bar_complete="▬", pre_bar_deco="[⏵]"):
+    #def get_bar(total, progress, length=20, bar_empty="─", bar_middle="█", bar_complete="▞"):
+    #def get_bar(total, progress, length=20, bar_complete='█', bar_empty='░', bar_middle='█'):
     if total == 0: filled_length = 0
     else: filled_length = int(length * progress // total)
     bar = bar_complete * (filled_length-1)+ bar_middle + bar_empty * (length - filled_length)
-    return f"[:arrow_forward:|:pause_button:|:stop_button:] {bar} [`{convert_seconds(progress)}`/`{convert_seconds(total)}`]"
+    duration = f"[`{convert_seconds(progress)}`｜`{convert_seconds(total)}`]"
+    return f"┌"+"─"*(2*length+3+3*len(duration)//4)+"┐\n" \
+           f"᲼᲼᲼{pre_bar_deco} {bar} {duration}᲼᲼᲼\n" \
+           f"└"+"─"*(2*length+3+3*len(duration)//4)+"┘"
 
 
 def get_spotify_artist(query, is_song=False):
