@@ -146,6 +146,7 @@ Features that are not as important, but would be nice to have.
 - [ ] Interactive buttons to play, resume, etc.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc).
 - [ ] Audio volume normalizer between all tracks (so that they all play at the same perceived volume) and volume normalization for individual tracks (to remove excessive dynamic range).
+- [ ] Modify parameters through commands.
 
 ### Low priority
 Features that can wait.
