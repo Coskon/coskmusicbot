@@ -536,35 +536,43 @@ async def update_level_info(ctx, user_id, xp_add):
 
 
 async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
-    if start > total_length-10: start -= 10
-    start = max(0, start)
-    clip_length = min(max(1, clip_length), 59)
-
-    if vtype == 'live' or total_length == 0:
-        start_byte = int(start * 7812)  # estimate
-        headers = {
-            'Range': f'bytes={start_byte}-'
-        }
-    else:
-        start_byte = int((start / total_length) * 1000000)  # estimate
-        end_byte = start_byte + int((clip_length / total_length) * 1000000)
-        headers = {
-            'Range': f'bytes={start_byte}-{end_byte}'
-        }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-
     try:
-        AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(r'downloads/shazam.mp3', format='mp3')
+        if start > total_length - 10: start -= 10
+        start = max(0, start)
+        clip_length = min(max(1, clip_length), 59)
+
+        if vtype == 'live' or total_length == 0:
+            start_byte = int(start * 7812)  # estimate
+            headers = {
+                'Range': f'bytes={start_byte}-'
+            }
+        else:
+            start_byte = int((start / total_length) * 1000000)  # estimate
+            end_byte = start_byte + int((clip_length / total_length) * 1000000)
+            headers = {
+                'Range': f'bytes={start_byte}-{end_byte}'
+            }
+
+        try:
+            start_time = '00:00:00' if vtype == 'live' else '00:' * (start < 3600) + convert_seconds(start)
+            end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:' * (start + 10 < 3600) + convert_seconds(start + clip_length)
+            subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except:
+            try:
+                print("ffmpeg failed, moving to pydub...")
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(r'downloads/shazam.mp3', format='mp3')
+            except:
+                print("pydub failed")
+                return None
+
+        shazam = Shazam()
+        out = await shazam.recognize(r'downloads/shazam.mp3')
+        if not out or not out['matches']: return None
+        return out['track']
     except:
-        print("pydub failed, moving to ffmpeg...")
-        start_time = '00:00:00' if vtype == 'live' else '00:'*(start < 3600)+convert_seconds(start)
-        end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:'*(start+10 < 3600)+convert_seconds(start+clip_length)
-        subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    shazam = Shazam()
-    out = await shazam.recognize(r'downloads/shazam.mp3')
-    if not out or not out['matches']: return None
-    return out['track']
+        traceback.print_exc()
 
 
 async def change_channels(ctx, channels):
