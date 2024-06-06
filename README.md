@@ -32,6 +32,8 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
+- Now the bot should be able to recognize and play a few more links correctly.
 - Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
 - Added `mono` and `stereo` commands, as the name indicates it changes the audio to mono or stereo.
 - Added `share`, `sharecomp` and `load` modes to the `playlist` command: Now you can share custom playlists between servers, to get a share code you use `playlist share [playlist name]` or `playlist sharecomp [playlist name]`, and load it using `playlist load [code]`, the difference between `share` and `sharecomp` is that the first method requires both servers to have the bot hosted by the same person because it grabs the data directly from the .json files, the second method gives a base85 encoded version of each url so it should be always compatible (or, if all urls are youtube videos, it gives a string with all video ids concatenated), however the length of the code is very long in this case, luckily you can just download the .txt file it provides and attach it when loading the playlist instead of writing the share code in the command.
@@ -128,6 +130,7 @@ You can see aliases for each command using the bot `help` command. If you want t
 - `add_perm [name] [permission]`: Adds "permission" to the specified user (use ALL or * to affect everyone, use ALL or * to give every permission).
 - `del_perm [name] [permission]`: Removes "permission" from the specified user (use ALL or * to affect everyone).
 - `lang [language]`: Changes the language of the bot (english: en, spanish: es).
+- `parameter [name] [value]`: Changes the value of the specified parameter to the one given, shows its value if no value is given or shows a list of the parameters otherwise.
 
 ## To be added
 A list of things that might get added:
@@ -146,7 +149,7 @@ Features that are not as important, but would be nice to have.
 - [ ] Interactive buttons to play, resume, etc.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc).
 - [ ] Audio volume normalizer between all tracks (so that they all play at the same perceived volume) and volume normalization for individual tracks (to remove excessive dynamic range).
-- [ ] Modify parameters through commands.
+- [X] ~~Modify parameters through commands.~~ Might change something in the future to avoid people abusing this. For now, remove the command from the code if needed.
 
 ### Low priority
 Features that can wait.
