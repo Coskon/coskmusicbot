@@ -7,47 +7,50 @@ VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_joi
 VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download', 'use_playlist']
 VAR_ADMIN_PERMS = VAR_AVAILABLE_PERMS.copy()
 
-def write_param():
+def write_param(param_dict=None):
     threads = os.cpu_count() // 2
     with open('PARAMETERS.txt', 'w') as f:
-        f.write(f"BOT_NAME = Coskquin  # name of your bot\n\n"
-                f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n"
-                f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n"
-                f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n"
-                f"TIMELIMIT = 40  # (in seconds) timelimit for the popup of the search choice embed\n\n"
-                f"REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user\n\n"
-                f"EMBED_COLOR = 0xff0000  # color for the side of the embed\n\n"
-                f"ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure\n\n"
-                f"DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default\n\n"
-                f"DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default\n\n"
-                f"LVL_PLAY_ADD = 1  # how much to add per play command called\n\n"
-                f"LVL_NEXT_XP = 25  # how much required xp added per next level\n\n"
-                f"LVL_BASE_XP = 25  # base xp required for the first level\n\n"
-                f"NUM_THREADS_HIGH = {threads if threads > 0 else 1}  # number of threads to use for tasks that need high performance\n\n"
-                f"NUM_THREADS_LOW = {threads // 2 if threads // 2 > 0 else 1}  # number of threads to use for tasks that don't need as much performance\n\n"
-                f"USE_LOGIN = False\n\n"
-                f"DOWNLOAD_PATH = downloads/  # download output folder\n\n"
-                f"DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\n"
-                f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands\n\n"
-                f"AVAILABLE_PERMS = {VAR_AVAILABLE_PERMS}  # all permissions available\n\n"
-                f"DEFAULT_USER_PERMS = {VAR_DEFAULT_PERMS}  # permissions each user gets by default\n\n"
-                f"ADMIN_PERMS = {VAR_ADMIN_PERMS}  # permissions admin users get by default\n\n"
-                f"USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\n"
-                f"USE_GRADIO = True  # use gradio for the user interface\n\n"
-                f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
-                f"MAX_SEARCH_SELECT = 15  # limit of youtube searching when choosing a song\n\n"
-                f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
-                f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
-                f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
-                f"QUEUE_VIDEOS_PER_PAGE = 30  # how many videos to show per page in the queue\n\n"
-                f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
+        if param_dict is None:
+            f.write(f"BOT_NAME = Coskquin  # name of your bot\n\n"
+                    f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n"
+                    f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n"
+                    f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n"
+                    f"TIMELIMIT = 40  # (in seconds) timelimit for the popup of the search choice embed\n\n"
+                    f"REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user\n\n"
+                    f"EMBED_COLOR = 0xff0000  # color for the side of the embed\n\n"
+                    f"ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure\n\n"
+                    f"DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default\n\n"
+                    f"DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default\n\n"
+                    f"LVL_PLAY_ADD = 1  # how much to add per play command called\n\n"
+                    f"LVL_NEXT_XP = 25  # how much required xp added per next level\n\n"
+                    f"LVL_BASE_XP = 25  # base xp required for the first level\n\n"
+                    f"NUM_THREADS_HIGH = {threads if threads > 0 else 1}  # number of threads to use for tasks that need high performance\n\n"
+                    f"NUM_THREADS_LOW = {threads // 2 if threads // 2 > 0 else 1}  # number of threads to use for tasks that don't need as much performance\n\n"
+                    f"USE_LOGIN = False\n\n"
+                    f"DOWNLOAD_PATH = downloads/  # download output folder\n\n"
+                    f"DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\n"
+                    f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands\n\n"
+                    f"AVAILABLE_PERMS = {VAR_AVAILABLE_PERMS}  # all permissions available\n\n"
+                    f"DEFAULT_USER_PERMS = {VAR_DEFAULT_PERMS}  # permissions each user gets by default\n\n"
+                    f"ADMIN_PERMS = {VAR_ADMIN_PERMS}  # permissions admin users get by default\n\n"
+                    f"USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\n"
+                    f"USE_GRADIO = True  # use gradio for the user interface\n\n"
+                    f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
+                    f"MAX_SEARCH_SELECT = 15  # limit of youtube searching when choosing a song\n\n"
+                    f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
+                    f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
+                    f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
+                    f"QUEUE_VIDEOS_PER_PAGE = 30  # how many videos to show per page in the queue\n\n"
+                    f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
+        else:
+            param_text = "\n\n".join(f"{key} = {value}" for key, value in param_dict.items()) + "\n\n"
+            f.write(param_text)
 
 
-def read_param(complete=False):
+def read_param():
     if not os.path.exists("PARAMETERS.txt"): write_param()
     with open("PARAMETERS.txt", 'r') as f:
         lines = f.readlines()
-
     parameters = {}
     for line in lines:
         if line == "\n": continue
@@ -63,12 +66,13 @@ def is_raw_data_url(url):
     try:
         response = requests.head(url, allow_redirects=True)
         content_type = response.headers.get('Content-Type', '').lower()
-        audio_video_mime_types = [
-            'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-m4a'
-            'video/mp4', 'video/x-msvideo', 'video/quicktime', 'video/x-ms-wmv', 'video/x-flv', 'video/x-matroska', 'video/webm',
-            'application/vnd.apple.mpegurl', 'application/x-mpegurl'
-        ]
-        return content_type in audio_video_mime_types
+        mime_types = {
+            'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/m4a'
+            'video/mp4', 'video/msvideo', 'video/quicktime', 'video/ms-wmv', 'video/flv', 'video/matroska', 'video/webm',
+            'application/vnd.apple.mpegurl', 'application/mpegurl'
+        }
+        x_mime_types = set(s.replace("/", "/x-") for s in mime_types)
+        return content_type in mime_types | x_mime_types
     except requests.RequestException as e:
         print(f"An error occurred: {e}")
         return False

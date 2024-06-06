@@ -109,8 +109,8 @@ YDL_OPTS = {
     'extract_flat': True,
     'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
 }
-PREFERRED_FORMATS = {'http', 'mp4', 'Audio_Only'}
-EXTRA_FORMATS = {'160p', '360p', '480p', '720p60', '1080p60', '0', 'hls_mp3_128', 'http_mp3_128',
+PREFERRED_FORMATS = {'http', 'mp4', 'Audio_Only', '1'}
+EXTRA_FORMATS = {'160p', '360p', '480p', '720p60', '1080p60', '0', '2', 'hls_mp3_128', 'http_mp3_128',
                  'hls_opus_64', 'hls'}
 
 ## NORMAL FUNCTIONS ##
@@ -351,6 +351,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
                             stream_url = formats['url']
                             break
                     if not stream_url:
+                        fid = formats['format_id'].split("-")[0]
                         for formats in info['formats']:
                             if fid in EXTRA_FORMATS:
                                 stream_url = formats['url']
@@ -482,7 +483,7 @@ async def play_next(ctx, rewinded=0):
         dict_current_time[gid] = 0
         disable_play = False
         return
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.25)
     dict_queue.setdefault(gid, list())
     dict_current_song.setdefault(gid, 0)
     if rewinded == 1: dict_current_song[gid] -= 1
@@ -555,14 +556,17 @@ async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
 
         try:
             start_time = '00:00:00' if vtype == 'live' else '00:' * (start < 3600) + convert_seconds(start)
-            end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:' * (start + 10 < 3600) + convert_seconds(start + clip_length)
-            subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:' * (start + 10 < 3600) + convert_seconds(
+                start + clip_length)
+            subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except:
             try:
                 print("ffmpeg failed, moving to pydub...")
                 response = requests.get(url, headers=headers)
                 response.raise_for_status()
-                AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(r'downloads/shazam.mp3', format='mp3')
+                AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(
+                    r'downloads/shazam.mp3', format='mp3')
             except:
                 print("pydub failed")
                 return None
@@ -1631,7 +1635,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if not is_url(url):
                 search_message = await channel_to_send.send(searching_text)
                 results = search_youtube(url, max_results=MAX_SEARCH_SELECT if search else 1)
-
                 if not results:
                     await search_message.delete()
                     await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1644,7 +1647,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         description="",
                         color=EMBED_COLOR
                     )
-
                     emojis_reactions = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '❌']
                     emoji_to_number = {
                         '1️⃣': 1,
@@ -1741,13 +1743,15 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     # pitch as freq multiplier, speed as tempo multiplier, volume/bass/high in dB
                 }
         end = False
+
         if not all_chosen:
             vtype, vid_id = check_link_type(video_select['url'])
             not_loaded_list = []
             failed_check = False
+
             if vtype == 'unknown':
                 try:
-                    if not isinstance(url, dict):
+                    if not isinstance(url, dict) and not video_select['stream_url']:
                         links = [info_from_url(video_select['url'])]
                         if not links[0]['stream_url']:
                             not_loaded_list.append(f"[{links[0]['title']}]({links[0]['url']})")
@@ -1876,7 +1880,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 else:
                     links = [info_from_url(url)]
             if vtype in {'video', 'live'}:
-                if not isinstance(url, dict):
+                if not isinstance(url, dict) and not video_select['stream_url']:
                     links = [info_from_url(video_select['url'])]
                     if not links[0]['stream_url']:
                         not_loaded_list.append(f"[{links[0]['title']}]({links[0]['url']})")
@@ -1888,11 +1892,9 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if end: return
         else:
             vtype = 'video'
+
         try: vid = links[0].copy()
         except: vid = links[0]
-        try: channels = get_audio_channels(vid['stream_url'])
-        except: channels = 2
-        vid['audio_options']['channels'] = channels
         if vid['length'] > MAX_VIDEO_LENGTH:
             await channel_to_send.send(video_max_duration.replace("%video_limit", str(convert_seconds(MAX_VIDEO_LENGTH))),
                            reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1944,6 +1946,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             await channel_to_send.send(content=random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not update_current_time.is_running(): update_current_time.start()
+
         if append:
             dict_queue[gid] = dict_queue.setdefault(gid, list())
             dict_current_song[gid] = dict_current_song.setdefault(gid, 0)
@@ -1961,6 +1964,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     stream_url = vid['stream_url'] if isinstance(vid, dict) else url
                     voice_client.play(discord.FFmpegPCMAudio(stream_url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
+
+
             except Exception as e:
                 print(e)
                 pass
@@ -2356,7 +2361,7 @@ async def skip(ctx):
                 vote_message = await channel_to_send.send(vote_skip_text.replace("%num", str(majority)))
                 await vote_message.add_reaction("❌")
                 await vote_message.add_reaction("✅")
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.25)
                 vote_skip_dict[gid], vote_skip_counter[gid] = 0, 0
                 message_id_dict[gid], majority_dict[gid] = vote_message.id, [majority, list(user.id for user in voice_client.channel.members)]
                 ctx_dict_skip[gid] = ctx
@@ -3212,6 +3217,54 @@ async def reload(ctx):
 
         globals().update(parameters)
         print("Parameters succesfully reloaded.")
+    except:
+        traceback.print_exc()
+
+
+@bot.command(name='param', aliases=['parameter', 'parameters'])
+@commands.has_permissions(administrator=True)
+async def parameter(ctx, parameter=None, *, value=None):
+    try:
+        channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        parameters = read_param()
+        if len(parameters.keys()) < 31:
+            input(f"\033[91m{missing_parameters}\033[0m")
+            write_param()
+            parameters = read_param()
+        if parameter is None:
+            embed = discord.Embed(
+                title="",
+                description=', '.join([f"`{param}`" for param in parameters]),
+                color=EMBED_COLOR
+            )
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        parameter = parameter.upper()
+        if parameter in {'DEFAULT', 'RESET', 'RESTART'}:
+            write_param()
+            parameters = read_param()
+            globals().update(parameters)
+            print("Parameters succesfully reloaded.")
+            await channel_to_send.send(parameters_to_default, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if parameter not in parameters:
+            await channel_to_send.send(invalid_parameter, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        if value is None:
+            embed = discord.Embed(
+                title="",
+                description=f"{parameter} = {parameters[parameter]}",
+                color=EMBED_COLOR
+            )
+            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
+        parameters[parameter] = value
+        write_param(parameters)
+        parameters = read_param()
+        globals().update(parameters)
+        print("Parameters succesfully reloaded.")
+        await channel_to_send.send(parameter_changed_value.replace("%pname", parameter).replace("%value", value), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        return
     except:
         traceback.print_exc()
 

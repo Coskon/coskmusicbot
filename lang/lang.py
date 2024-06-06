@@ -77,18 +77,19 @@ if True: # only to minimize
     song_chosen_title = "Song chosen"
     raw_audio_desc = "¡**%name** put an audio in *%ch_name*!"
     all_selected = "All songs from page %page chosen."
-    song_chosen_desc = "**%name** put **%title** in *%ch_name*!"
+    song_chosen_desc = "**%name** put **[%title](%url)** in *%ch_name*!"
     added_queue_title = "Added to queue"
-    added_queue_desc = "%url\n\n➤ **Title**: *%title*\n➤ **Duration**: `%duration`"
-    playing_title = "Playing:"
-    playing_desc = "%url\n\n➤ **Title**: *%title*\n➤ **Duration**: `%duration`"
+    added_queue_desc = "**%name** added **[%title](%url)** to the queue."
+    word_title = "Title"
+    word_duration = "Duration"
+    word_views = "Views"
     level_title = "Level menu"
     level_desc = "➤ **Name**: %name\n➤ **LVL**: `%level`\n➤ **XP**: `%xp/%next_xp`"
     removed_from_queue = "Deleted from queue: *%title*"
     fast_forwarding = ":fast_forward: Fast forwarding"
     rewinding = ":arrow_backward: Rewinding"
     forward_title = "**%modetype %sec to %time**"
-    seek_title = "**Going to %time**"
+    seek_title = "Playback Position Updated"
     not_loop_mode = f"`%mode` is not a loop mode, use `queue/all`, `shuffle/random`, `one` or `off`."
     loop_disable = "Loop disabled."
     loop_mode_changed = "Loop mode: `%loop`."
@@ -156,10 +157,13 @@ if True: # only to minimize
     playlist_loaded = "Playlist `%pl_name` loaded with `%len` videos."
     change_channels_mode = "Changed audio to `%mode`."
     missing_parameters = "ATTENTION: Missing parameter, file will be rewritten and parameters will be changed to default.\nPress 'Enter' to proceed."
+    invalid_parameter = "Invalid parameter, use `parameters` to see the list of available parameters."
+    parameters_to_default = "Parameters reverted to default."
+    parameter_changed_value = "Parameter `%pname` changed to `%value`."
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
-    command_desc_play = f"➤ Use: `play [query or url] [nothing/---1]`\n➤ Aliases: `p`\n" \
-                          f"➤ Description: Plays the given song. If ---1 is added at the end, a gif is added (try it!)."
+    command_desc_play = f"➤ Use: `play [query or url] [nothing/-opt option]`\n➤ Aliases: `p`\n" \
+                          f"➤ Description: Plays the given song. If -opt gif is added at the end, a gif is added (try it!)."
     command_desc_leave = f"➤ Use: `leave`\n➤ Aliases: `l`, `dis`, `disconnect`, `d`\n" \
                            f"➤ Description: Disconnects the bot from the voice channel and clears the queue."
     command_desc_skip = f"➤ Use: `skip`\n➤ Aliases: `s`, `next`\n" \
@@ -233,7 +237,7 @@ if True: # only to minimize
                            f"(positive: higher pitch, negative: lower pitch)."
     command_desc_lang =  f"➤ Use: `lang [language]`\n➤ Aliases: `language`, `change_lang`, `change_language`\n" \
                            f"➤ Description: Changes the language of the bot (english: en, spanish: es)."
-    command_commands = "➤ `help [nothing/command] (h)`\n➤ `play [query or url] [nothing/---1] (p)`\n" \
+    command_commands = "➤ `help [nothing/command] (h)`\n➤ `play [query or url] [nothing/-opt option] (p)`\n" \
                          "➤ `leave (l, dis, disconnect, d)`\n➤ `skip (s, next)`\n➤ `join (connect)`\n➤ `pause (stop)`\n" \
                          "➤ `resume`\n➤ `queue (q)`\n➤ `loop [all/queue/shuffle/random/one/off] (lp)`\n➤ `shuffle (sf, random)`\n" \
                          "➤ `np (info, nowplaying, playing)`\n➤ `lyrics [nothing/song name] (lyric)`\n" \
@@ -336,18 +340,19 @@ if True: # only to minimize
     song_chosen_title = "Canción elegida"
     raw_audio_desc = "¡**%name** puso un audio en *%ch_name*!"
     all_selected = "Todas las canciones de la página %page elegidas."
-    song_chosen_desc = "¡**%name** puso **%title** en *%ch_name*!"
+    song_chosen_desc = "¡**%name** puso **[%title](%url)** en *%ch_name*!"
     added_queue_title = "Añadido a la cola"
-    added_queue_desc = "%url\n\n➤ **Título**: *%title*\n➤ **Duración**: `%duration`"
-    playing_title = "Sonando:"
-    playing_desc = "%url\n\n➤ **Título**: *%title*\n➤ **Duración**: `%duration`"
+    added_queue_desc = "**%name** añadió **[%title](%url)** a la cola."
+    word_title = "Título"
+    word_duration = "Duración"
+    word_views = "Visitas"
     level_title = "Menú de niveles"
     level_desc = "➤ **Nombre**: %name\n➤ **NVL**: `%level`\n➤ **EXP**: `%xp/%next_xp`"
     removed_from_queue = "Removido de la cola: *%title*"
     fast_forwarding = ":fast_forward: Adelantando"
     rewinding = ":arrow_backward: Rebobinando"
     forward_title = "**%modetype %sec a %time**"
-    seek_title = "**Yendo a %time**"
+    seek_title = "Posición Actualizada"
     not_loop_mode = f"`%mode` no es un modo de loop, usar `queue/all`, `shuffle/random`, `one` o `off`."
     loop_disable = "Loop desactivado."
     loop_mode_changed = "Modo de loop: `%loop`."
@@ -415,10 +420,13 @@ if True: # only to minimize
     playlist_loaded = "Lista `%pl_name` cargada con `%len` videos."
     change_channels_mode = "Cambiado el audio a `%mode`."
     missing_parameters = "ATENCIÓN: Parámetro faltante, se reescribirá el archivo y los parámetros serán cambiados a sus valores por defecto.\nPresiona 'Enter' para proceder."
+    invalid_parameter = "Parámetro inválido, usar `parameters` para ver la lista de parámetros disponibles."
+    parameters_to_default = "Parámetros revertidos a su valor por defecto."
+    parameter_changed_value = "Parámetro `%pname` cambiado a `%value`."
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
-    command_desc_play = f"➤ Uso: `play [canción o link] [nada/---1]`\n➤ Aliases: `p`\n" \
-                          f"➤ Descripción: Toca la canción dada. Si se agrega ---1 al final, se añade un gif (¡prúebalo!)."
+    command_desc_play = f"➤ Uso: `play [canción o link] [nada/-opt opción]`\n➤ Aliases: `p`\n" \
+                          f"➤ Descripción: Toca la canción dada. Si se agrega -opt gif al final, se añade un gif (¡prúebalo!)."
     command_desc_leave = f"➤ Uso: `leave`\n➤ Aliases: `l`, `dis`, `disconnect`, `d`\n" \
                            f"➤ Descripción: Desconecta al bot del canal de voz."
     command_desc_skip = f"➤ Uso: `skip`\n➤ Aliases: `s`, `next`\n" \
@@ -494,7 +502,7 @@ if True: # only to minimize
                            f"(positivo: más agudo, negativo: más grave)."
     command_desc_lang = f"➤ Uso: `lang [lenguaje]`\n➤ Aliases: `language`, `change_lang`, `change_language`\n" \
                           f"➤ Descripción: Cambia el lenguaje del bot (inglés: en, español: es)."
-    command_commands = "➤ `help [nada/comando] (h)`\n➤ `play [canción o link] [nada/---1] (p)`\n" \
+    command_commands = "➤ `help [nada/comando] (h)`\n➤ `play [canción o link] [nada/-opt] (p)`\n" \
                          "➤ `leave (l, dis, disconnect, d)`\n➤ `skip (s, next)`\n➤ `join (connect)`\n➤ `pause (stop)`\n" \
                          "➤ `resume`\n➤ `queue (q)`\n➤ `loop [all/queue/shuffle/random/one/off] (lp)`\n➤ `shuffle (sf, random)`\n" \
                          "➤ `np (info, nowplaying, playing)`\n➤ `lyrics [nada/canción] (lyric)`\n" \
