@@ -1,9 +1,9 @@
 # Coskquin: Cosk Music Bot
-A music bot for discord made in python. If you want something to be added you may open an issue with a feature request.
+A music bot for discord made in python, self-hosted or using cloud services.
 
 ---
 
-### Pre release: v0.9.2-pre
+### Pre release: v0.9.3-pre
 Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
 
 `help` needs to be updated with all the commands and info too.
@@ -32,6 +32,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- Separated `forward` into `forward` and `backwards`. You can still negative time with both to do the opposite operation.
 - Added fonts, you can change fonts using `parameter font [font name]`, then running the "lang.py" script and running the `lang [language]` command (or restart the bot to avoid the last two steps). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`. By default there is no special font (`normal` font).
 - Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
 - Now the bot should be able to recognize and play a few more links correctly.
@@ -95,7 +96,8 @@ You can see aliases for each command using the bot `help` command. If you want t
 - `goto [number]`: Goes to the song at position "number" in the queue.
 - `loop [mode]`: Changes the loop mode (`all/queue` repeats the whole queue, `shuffle/random` randomizes the next song each time, `one` repeats the current song, `autodj` enables autoplay and `off` disables it). If no mode is given, it switches between `all` and `off`.
 - `seek [time]`: Goes to the given time, time can be given either in seconds or in HH:MM:SS format.
-- `forward [time]`: Fast forwards or rewinds the specified time (depends if the time is positive or negative), time can be given either in seconds or in HH:MM:SS format.
+- `forward [time]`: Fast forwards the specified time, time can be given either in seconds or in HH:MM:SS format.
+- `backwards [time]`: Rewinds the specified time, time can be given either in seconds or in HH:MM:SS format.
 - `volume [volume]`: Changes the volume of the current track, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB)
 - `shuffle`: Randomizes the order of the songs in the queue.
 - `reverse`: Reverses the order of the queue.
