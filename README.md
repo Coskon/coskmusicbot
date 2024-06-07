@@ -65,7 +65,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 - Set the secrets/enviroment variables (recommended for security reasons): `DISCORD_APP_KEY`, optionally; `TENOR_API_KEY`, `OPENAI_KEY`, `GENIUS_ACCESS_TOKEN`, `SPOTIFY_ID`, `SPOTIFY_SECRET`. Alternatively, you may set them in the `API_KEYS.txt` file, however this is not recommended, given that is a public site (specially in Replit, where the code is public for the free plan), using enviroment variables is better (and often easier) in this case.
 - If you used enviroment variables, change `USE_PRIVATE_TOKENS` to `True` in both `bot.py` and `utilidades.py` (you can find it normally with Ctrl+F or with some search function your platform probably has).
 - If the platform gives you an error saying "module extras doesn't exist" or similar, put `extras.py` into the `site-packages` folder.
-- **Important:** Make sure your platform has FFMPEG and OPUS support. In Replit, you have to go to `replit.nix` (it's a hidden file), and add `pkgs.libopus` to  `deps = [ ... ]`.
+- **Important:** Make sure your platform has FFMPEG and OPUS support. In Replit, you have to go to `replit.nix` (it's a hidden file), and add `pkgs.libopus` to  `deps = [ ... ]`. Also, it should have the `rubberband` filter, for some reason Replit doesn't have it and i couldn't find a way to install it, so in that case go to `bot.py`, find "rubberband" and remove it from the ffmpeg options string.
 - If the program doesn't automatically install/import the required packages, you may add the `requirements.txt` file and run `pip install -r requirements.txt` in the shell.
 - Done! For Replit, you can just press "Run" (make sure `bot.py` is renamed to `main.py`) to run your bot.
 
