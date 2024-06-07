@@ -32,6 +32,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- Added fonts, you can change fonts using `parameter font [font name]`, then running the "lang.py" script and running the `lang [language]` command (or restart the bot to avoid the last two steps). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`. By default there is no special font (`normal` font).
 - Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
 - Now the bot should be able to recognize and play a few more links correctly.
 - Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
