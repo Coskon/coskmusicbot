@@ -556,26 +556,26 @@ async def find_song_shazam(url, start, total_length, vtype, clip_length=15):
             headers = {
                 'Range': f'bytes={start_byte}-{end_byte}'
             }
-
+        if not os.path.exists(DOWNLOAD_PATH):
+            os.makedirs(DOWNLOAD_PATH)
         try:
             start_time = '00:00:00' if vtype == 'live' else '00:' * (start < 3600) + convert_seconds(start)
             end_time = f'00:00:{clip_length}' if vtype == 'live' else '00:' * (start + 10 < 3600) + convert_seconds(
                 start + clip_length)
-            subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', 'downloads/shazam.mp3'],
+            subprocess.run(['ffmpeg', '-ss', start_time, '-to', end_time, '-i', url, '-y', DOWNLOAD_PATH+'shazam.mp3'],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except:
             try:
                 print("ffmpeg failed, moving to pydub...")
                 response = requests.get(url, headers=headers)
                 response.raise_for_status()
-                AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(
-                    r'downloads/shazam.mp3', format='mp3')
+                AudioSegment.from_file(BytesIO(response.content), start_second=start, duration=clip_length).export(DOWNLOAD_PATH+'shazam.mp3', format='mp3')
             except:
                 print("pydub failed")
                 return None
 
         shazam = Shazam()
-        out = await shazam.recognize(r'downloads/shazam.mp3')
+        out = await shazam.recognize(DOWNLOAD_PATH+'shazam.mp3')
         if not out or not out['matches']: return None
         return out['track']
     except:
