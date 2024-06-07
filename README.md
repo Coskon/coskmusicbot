@@ -3,7 +3,7 @@ A music bot for discord made in python. If you want something to be added you ma
 
 ---
 
-### Pre release: v0.9.1-pre
+### Pre release: v0.9.2-pre
 Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
 
 `help` needs to be updated with all the commands and info too.
@@ -13,7 +13,7 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - Accepts playlists.
 - Custom playlists for each server.
 - Livestreams.
-- Support for a lot of pages, including Twitch, SoundCloud, even twitter for some reason.
+- Support for a lot of pages, including Twitch, SoundCloud, TuneIn (radio), even twitter for some reason.
 - Spotify to youtube conversion.
 - Autoplay/Auto DJ.
 - Play from file attachments.
@@ -38,8 +38,6 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
 - Added `mono` and `stereo` commands, as the name indicates it changes the audio to mono or stereo.
 - Added `share`, `sharecomp` and `load` modes to the `playlist` command: Now you can share custom playlists between servers, to get a share code you use `playlist share [playlist name]` or `playlist sharecomp [playlist name]`, and load it using `playlist load [code]`, the difference between `share` and `sharecomp` is that the first method requires both servers to have the bot hosted by the same person because it grabs the data directly from the .json files, the second method gives a base85 encoded version of each url so it should be always compatible (or, if all urls are youtube videos, it gives a string with all video ids concatenated), however the length of the code is very long in this case, luckily you can just download the .txt file it provides and attach it when loading the playlist instead of writing the share code in the command.
-- Added parameter `DISCONNECT_AFTER_QUEUE_END` to indicate if the bot should stay or not when all songs have ended, its `False` by default so the bot stays. This is useful if you plan on playing more songs and are bothered by the bot disconnecting and connecting each time. The queue will not clear with this parameter set to `False`, if you want to clear the queue for now you will need to call the `leave` command (a `clear` command might be added).
-- Changed parameter `SKIP_PRIVATE_SEARCH` to `True` by default. When searching on YouTube with this option enabled, it will be faster but it will not include age restricted videos or livestreams. If you plan on searching for any of these instead of going to YouTube and getting the url then disable this option, however you should probably set the `MAX_SEARCH_SELECT` parameter to a lower value to improve speeds.
 
 ## Installation Guide
 - Install [Python](https://www.python.org/downloads/).
