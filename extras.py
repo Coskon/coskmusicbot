@@ -53,7 +53,7 @@ def write_param(param_dict=None):
                     f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
                     f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
                     f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
-                    f"QUEUE_VIDEOS_PER_PAGE = 30  # how many videos to show per page in the queue\n\n"
+                    f"QUEUE_VIDEOS_PER_PAGE = 15  # how many videos to show per page in the queue\n\n"
                     f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
         else:
             param_text = "\n\n".join(f"{key} = {value}" for key, value in param_dict.items()) + "\n\n"
@@ -206,12 +206,10 @@ def get_share_code(urls=None, gid="", playlist_name="", shortened=True):
     return playlist_name+"%PL%"+b85encode(bytes(";".join([url for url in urls]).encode())).decode()
 
 
-def find_font(text):
+def find_font(text, FONT):
     ret_text = ""
-    try:
-        FONT = read_param(prev_path='../')['FONT'].lower()
-    except:
-        FONT = read_param()['FONT'].lower()
+    if FONT not in FONT_DICT:
+        FONT = 'normal'
     font = FONT_DICT[FONT]
     perc = False
     for c in text:

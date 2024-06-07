@@ -340,15 +340,18 @@ def get_chords_and_lyrics(query, traspose=0):
                 data_content = lyrics_div['data-content']
                 content_json = json.loads(data_content)
                 tuning_info = content_json['store']['page']['data']['tab_view']['meta']
-                try:
-                    capo = tuning_info['capo']
-                except:
-                    capo = None
-                try:
-                    tonality = tuning_info['tonality']
-                except:
-                    tonality = 'Unknown'
-                tuning_name, tuning_value = tuning_info['tuning']['name'], tuning_info['tuning']['value']
+                if tuning_info:
+                    try:
+                        capo = tuning_info['capo']
+                    except:
+                        capo = None
+                    try:
+                        tonality = tuning_info['tonality']
+                    except:
+                        tonality = 'Unknown'
+                    tuning_name, tuning_value = tuning_info['tuning']['name'], tuning_info['tuning']['value']
+                else:
+                    capo, tonality, tuning_name, tuning_value = 0, '???', '???', '???'
                 chords_and_lyrics = content_json.get('store', {}).get('page', {}).get('data', {}).get('tab_view', {}).get('wiki_tab', '').get('content', {})
                 if "[Intro]" in chords_and_lyrics: chords_and_lyrics = chords_and_lyrics[chords_and_lyrics.find("[Intro]"):]
                 chords_and_lyrics = chords_and_lyrics.replace('  ', ' \-').replace('[ch]', '`').replace('[/ch]', '`').replace('[tab]', '').replace('[/tab]', '')

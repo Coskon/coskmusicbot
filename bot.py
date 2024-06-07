@@ -21,9 +21,6 @@ intents.voice_states, intents.message_content, intents.members = (True for _ in 
 activity = discord.Activity(type=discord.ActivityType.listening, name=".play")
 
 ## CONFIG AND LANGUAGE ##
-result = subprocess.run(["python", "lang/lang.py"], capture_output=True, text=True)
-print(result.stdout, result.stderr)
-
 config_path = "config.ini"
 config = configparser.ConfigParser()
 try:
@@ -504,7 +501,7 @@ async def play_next(ctx, rewinded=0):
         elif loop_mode[gid] == "autodj":
             auto = True
         else:
-            await leave(ctx, ignore=True, disconnect=DISCONNECT_AFTER_QUEUE_END)
+            await leave(ctx, ignore=True, disconnect=DISCONNECT_AFTER_QUEUE_END, ended_queue=True)
             return
     if auto:
         await autodj(ctx, ignore=True)
@@ -748,7 +745,7 @@ class QueueMenu(discord.ui.View):
 
 
 class PlaylistQueueMenu(discord.ui.View):
-    def __init__(self, queue, num_pages, ctx, gid, playlist_title):
+    def __init__(self, queue, num_pages, ctx, gid, playlist_title, creator):
         super().__init__(timeout=None)
         self.queue = queue
         self.num_pages = num_pages
@@ -756,6 +753,7 @@ class PlaylistQueueMenu(discord.ui.View):
         self.gid = gid
         self.ctx = ctx  # to check for perms
         self.playlist_title = playlist_title
+        self.creator = creator
 
     @discord.ui.button(label="", emoji="⬅️", style=discord.ButtonStyle.secondary)
     async def button_prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -809,13 +807,14 @@ class PlaylistQueueMenu(discord.ui.View):
             videos_with_length = self.queue.copy()
             not_all = False
         embed = discord.Embed(
-            title="Playlist: "+self.playlist_title,
+            title=playlist_title + self.playlist_title,
             description="\n".join(page_content),
             color=EMBED_COLOR
         )
         embed.add_field(name=queue_pages, value=f"`{self.current_page}/{self.num_pages}`"+INV_CHAR_PADDING)
         embed.add_field(name=queue_videos, value=f"`{len(self.queue)}`"+INV_CHAR_PADDING)
         embed.add_field(name=queue_duration, value=f"`{'+' if not_all else ''}{convert_seconds(sum([vid['length'] for vid in videos_with_length]))}`")
+        embed.set_author(name=playlist_created_by.replace("%name", self.creator['name']), icon_url=self.creator['avatar'])
         return embed
 
 
@@ -1301,7 +1300,7 @@ async def join(ctx):
 
 
 @bot.command(name='leave', aliases=['l', 'dis', 'disconnect', 'd'])
-async def leave(ctx, *, tmp='', ignore=False, disconnect=True):
+async def leave(ctx, *, tmp='', ignore=False, disconnect=True, ended_queue=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         global loop_mode, dict_current_song, dict_current_time, disable_play
@@ -1323,6 +1322,8 @@ async def leave(ctx, *, tmp='', ignore=False, disconnect=True):
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
+        if ended_queue:
+            await channel_to_send.send(song_queue_ended, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         if disconnect:
             loop_mode[gid] = "off"
             try:
@@ -1905,6 +1906,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             return
         titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
         if vid['type'] == 'live': duracion = 'LIVE'
+
         embed = discord.Embed(
             title="",
             description=song_chosen_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace(
@@ -1918,14 +1920,14 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         )
         embed.set_author(name=song_chosen_title, icon_url=ctx.author.avatar)
         embed.add_field(name=word_title, value=f"*{titulo}*"+INV_CHAR_PADDING)
-        embed.add_field(name=word_duration, value=f"`{duracion}`"+INV_CHAR_PADDING)
-        embed.add_field(name=word_views, value=f"`{format_views(vid['views'])}`"+INV_CHAR_PADDING)
+        embed.add_field(name=word_duration, value=f"`{duracion}`"+2*INV_CHAR_PADDING)
+        embed.add_field(name=word_views, value=f"`{format_views(vid['views'])}`")
         embed.set_footer(text=f"{vid['channel']}", icon_url=vid['channel_image'])
 
         embed2.set_author(name=added_queue_title, icon_url=ctx.author.avatar)
         embed2.add_field(name=word_title, value=f"*{titulo}*"+INV_CHAR_PADDING)
-        embed2.add_field(name=word_duration, value=f"`{duracion}`"+INV_CHAR_PADDING)
-        embed2.add_field(name=word_views, value=f"`{format_views(vid['views'])}`"+INV_CHAR_PADDING)
+        embed2.add_field(name=word_duration, value=f"`{duracion}`"+2*INV_CHAR_PADDING)
+        embed2.add_field(name=word_views, value=f"`{format_views(vid['views'])}`")
         embed2.set_footer(text=f"{vid['channel']}", icon_url=vid['channel_image'])
         img = None
         if gif and TENOR_API_KEY: img = search_gif(titulo, TENOR_API_KEY)
@@ -2075,7 +2077,18 @@ async def remove(ctx, index):
         traceback.print_exc()
 
 
-@bot.command(name='forward', aliases=['fw', 'forwards', 'bw', 'backward', 'backwards'])
+@bot.command(name='backward', aliases=['backwards', 'bw'])
+async def backward(ctx, time):
+    try:
+        try:
+            time = -1*int(time)
+            await forward(ctx, time)
+        except:
+            await forward(ctx, -1*int(convert_formated(time)))
+    except:
+        traceback.print_exc()
+
+@bot.command(name='forward', aliases=['fw', 'forwards', 'ff'])
 async def forward(ctx, time):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -2126,11 +2139,13 @@ async def forward(ctx, time):
             after=lambda e: on_song_end(ctx, e))
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
-        modetype = fast_forwarding if time >= 0 else rewinding
+        bar = utilidades.get_bar(int(vid['length']), dict_current_time[gid])
+        tmp_mode = fast_forwarding.replace("%emoji", ":fast_forward:") if time >= 0 else rewinding.replace("%emoji", ":arrow_backward:")
+        modetype = INV_CHAR_PADDING + tmp_mode
         embed = discord.Embed(
             title=forward_title.replace("%modetype", modetype).replace("%sec", str(convert_seconds(abs(time)))).replace(
                 "%time", str(actual)),
-            description=f"{utilidades.get_bar(int(vid['length']), dict_current_time[gid])}",
+            description=f"{bar}",
             color=EMBED_COLOR
         )
         await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2187,7 +2202,7 @@ async def seek(ctx, time):
 
         duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
         embed = discord.Embed(
-            title=seek_title.replace("%time", str(actual)),
+            title=INV_CHAR_PADDING + seek_title.replace("%time", str(actual)),
             description=f"{utilidades.get_bar(int(vid['length']), dict_current_time[gid])}",
             color=EMBED_COLOR
         )
@@ -2869,7 +2884,7 @@ async def stereo(ctx):
 
 
 @bot.command(name='shazam', aliases=['recognize', 'thissong', 'current', 'this', 'currentsong'])
-async def shazam(ctx, clip_length = '15'):
+async def shazam(ctx, clip_length='15'):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_shazam"):
@@ -3080,13 +3095,9 @@ async def lang(ctx, lng=None):
             await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
 
-        try:
-            with open(f"lang/{lng.lower()}.json", "r") as f:
-                lang_dict = json.load(f)
-        except:
-            subprocess.run(["python.exe", "lang/lang.py"])
-            with open(f"lang/{lng.lower()}.json", "r") as f:
-                lang_dict = json.load(f)
+        subprocess.run(["python.exe", "lang/lang.py"])
+        with open(f"lang/{lng.lower()}.json", "r") as f:
+            lang_dict = json.load(f)
 
         config.set("Config", "lang", lng.lower())
         with open(config_path, "w") as f:
@@ -3284,7 +3295,7 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
         gid = str(ctx.guild.id)
 
         mode = mode.lower()
-        if not mode in {'load'}: playlist_name = playlist_name.lower()
+        if not mode in {'load', 'import'}: playlist_name = playlist_name.lower()
         playlist_name = playlist_name.strip()
         file_path = f"playlists_{gid}.json"
         playlists = read_playlists(file_path, bot)
@@ -3294,14 +3305,15 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                 return
             embed = discord.Embed(
                 title=playlist_list_title,
-                description=playlist_list_desc.replace("%playlists", "\n".join(playlists.keys()))
+                description=""
             )
-            #embed.set_author(name=ctx.author.global_name, icon_url=ctx.author.avatar)
+            desc = "\n".join([f"- **{key}**: `{len(playlists[key]['songs'])}` "+playlist_info.replace("%name", playlists[key]['creator']['name']) for key in playlists.keys()])
+            embed.description = playlist_list_desc.replace("%playlists", desc)
             await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if not playlist_name:
             playlist_name = 'favs'
-        if mode == 'load':
+        if mode in {'load', 'import'}:
             try:
                 if ctx.message.attachments:
                     str_data = None
@@ -3432,7 +3444,8 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                                            reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             num_pages = (len(queue) - 1) // QUEUE_VIDEOS_PER_PAGE + 1
-            view = PlaylistQueueMenu(queue, num_pages, ctx, gid, playlist_name)
+            creator = playlists[playlist_name]['creator']
+            view = PlaylistQueueMenu(queue, num_pages, ctx, gid, playlist_name, creator)
             embed = view.create_embed()
             await channel_to_send.send(embed=embed, view=view,
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -3443,7 +3456,7 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                                            reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             if not voice_client or not voice_client.is_playing():
-                await play(ctx, url=links[0], search=False, silent=True)
+                await play(ctx, url=links[0], search=False)
             else:
                 links.insert(0, links[0])
             dict_queue[gid] = dict_queue[gid] + links[1:]
