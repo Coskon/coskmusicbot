@@ -45,7 +45,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 31:
+if len(parameters.keys()) < 32:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -1363,7 +1363,7 @@ async def info(ctx):
             if not artista or vid['type'] == 'raw_audio': artista = vid['channel'] if vid['channel'] else '???'
             embed = discord.Embed(
                 title=song_info_title,
-                description=song_info_desc.replace("%title", titulo).replace("%artist", artista).replace("%channel", vid_channel)
+                description=song_info_desc.replace("%title", titulo).replace("%artist", artista).replace("%channel", vid_channel.replace("*", r"\*"))
                     .replace("%duration", str(duracion)).replace("%bar", utilidades.get_bar(int(vid['length']), dict_current_time[gid])),
                 color=EMBED_COLOR
             )
@@ -1791,7 +1791,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     embed_playlist = discord.Embed(
                         title=playlist_added_title,
                         description=playlist_added_desc.replace("%name", ctx.author.global_name)
-                            .replace("%title", str(playlist.title)).replace("%ch_name", voice_channel.name)
+                            .replace("%title", str(playlist.title)).replace("%ch_name", voice_channel.name.replace("*", r"\*"))
                             .replace("%pl_length", str(len(links))),
                         color=EMBED_COLOR
                     )
@@ -1905,7 +1905,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         embed = discord.Embed(
             title="",
             description=song_chosen_desc.replace("%name", ctx.author.global_name).replace("%title", titulo).replace(
-                "%ch_name", voice_channel.name).replace("%url", vid['url']),
+                "%ch_name", voice_channel.name.replace("*", r"\*")).replace("%url", vid['url']),
             color=EMBED_COLOR
         )
         embed2 = discord.Embed(
@@ -3210,7 +3210,7 @@ async def reverse(ctx):
 async def reload(ctx):
     try:
         parameters = read_param()
-        if len(parameters.keys()) < 31:
+        if len(parameters.keys()) < 32:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()
@@ -3227,7 +3227,7 @@ async def parameter(ctx, parameter=None, *, value=None):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         parameters = read_param()
-        if len(parameters.keys()) < 31:
+        if len(parameters.keys()) < 32:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()

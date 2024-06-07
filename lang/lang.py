@@ -1,4 +1,5 @@
 import json
+from extras import find_font
 
 
 ### ENGLISH ###
@@ -255,7 +256,7 @@ en_data = dict()
 a = vars().copy()
 for name, value in zip(a.keys(), a.values()):
     if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
-        en_data[name] = value
+        en_data[name] = find_font(value) if isinstance(value, str) else [find_font(v) for v in value]
 
 try:
     with open("lang/en.json", "w") as f:
@@ -520,7 +521,7 @@ es_data = dict()
 a = vars().copy()
 for name, value in zip(a.keys(), a.values()):
     if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
-        es_data[name] = value
+        es_data[name] = find_font(value) if isinstance(value, str) else [find_font(v) for v in value]
 
 try:
     with open("lang/es.json", "w") as f:
