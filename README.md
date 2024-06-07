@@ -87,7 +87,7 @@ You can see aliases for each command using the bot `help` command. If you want t
 - `play [query]`: The query should be either a URL or what you want to search. If a URL is given, the song plays automatically (it can be a playlist), if not it will let you choose a video. You can also add audio attachments to be played.
 - `fastplay [query]`: Works the same as `play`, but skips having to choose.
 - `leave`: Disconnects the bot from the voice channel and clears the song queue.
-- `skip`: Skips to the next song, leaves if its the last song (unless loop is enabled). For users without permission, initiates a skip vote.
+- `skip`: Skips to the next song. For users without permission, initiates a skip vote.
 - `rewind`: Goes back to the previous song.
 - `join`: Connects to the voice channel.
 - `pause`: Pauses the current song.
