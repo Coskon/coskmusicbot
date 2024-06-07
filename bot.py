@@ -21,6 +21,9 @@ intents.voice_states, intents.message_content, intents.members = (True for _ in 
 activity = discord.Activity(type=discord.ActivityType.listening, name=".play")
 
 ## CONFIG AND LANGUAGE ##
+result = subprocess.run(["python", "lang/lang.py"], capture_output=True, text=True)
+print(result.stdout, result.stderr)
+
 config_path = "config.ini"
 config = configparser.ConfigParser()
 try:
