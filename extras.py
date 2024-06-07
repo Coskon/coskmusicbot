@@ -24,7 +24,7 @@ def write_param(param_dict=None):
     with open('PARAMETERS.txt', 'w') as f:
         if param_dict is None:
             f.write(f"BOT_NAME = Coskquin  # name of your bot\n\n"
-                    f"FONT = Normal\n\n"
+                    f"FONT = Normal  # normal, monospace, smallcaps, bubble, fullwidth, double_struck, bold, bold_italic, fraktur, script\n\n"
                     f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n"
                     f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n"
                     f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n"
@@ -208,7 +208,10 @@ def get_share_code(urls=None, gid="", playlist_name="", shortened=True):
 
 def find_font(text):
     ret_text = ""
-    FONT = read_param(prev_path='../')['FONT'].lower()
+    try:
+        FONT = read_param(prev_path='../')['FONT'].lower()
+    except:
+        FONT = read_param()['FONT'].lower()
     font = FONT_DICT[FONT]
     perc = False
     for c in text:
