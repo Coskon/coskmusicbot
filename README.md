@@ -32,9 +32,10 @@ Replit project will be updated with the full release.
 - And more...
 
 ## Recently added
+- Changed default font from `Normal` to `Monospace`. If you see anything weird change back to normal in the parameters or use `parameter font normal` and then `lang [en/es]`.
 - Changed youtube search function to be faster, and search age restricted videos without compromising speed.
 - Separated `forward` into `forward` and `backwards`. You can still negative time with both to do the opposite operation.
-- Added fonts, you can change fonts using `parameter font [font name]`, then running the "lang.py" script and running the `lang [language]` command (or restart the bot to avoid the last two steps). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`. By default there is no special font (`normal` font).
+- Added fonts, you can change fonts using `parameter font [font name]`, then running the `lang [language]` command (or restart the bot). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`.
 - Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
 - Now the bot should be able to recognize and play a few more links correctly.
 - Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
