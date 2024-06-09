@@ -2,8 +2,8 @@ import discord
 import asyncio
 import utilidades
 import spotipy
+import datetime
 import random, traceback, time, configparser, math
-from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
 from pydub import AudioSegment
 from io import BytesIO
@@ -84,12 +84,12 @@ if SPOTIFY_ID and SPOTIFY_SECRET:
     sp = spotipy.Spotify(client_credentials_manager=SPOTIFY_CREDENTIAL_MANAGER)
 
 ## GLOBAL VARIABLES ##
-dict_queue, active_servers = dict(), dict()
+dict_queue, dict_current_song, active_servers = dict(), dict(), dict()
 button_choice, vote_skip_dict, vote_skip_counter = dict(), dict(), dict()
 message_id_dict, majority_dict, ctx_dict_skip = dict(), dict(), dict()
+song_start_times, paused_durations, pause_start_times = dict(), dict(), dict()
 user_cooldowns = {}
 loop_mode = dict()
-dict_current_song, dict_current_time = dict(), dict()
 go_back, seek_called, disable_play = (False for _ in range(3))
 INV_CHAR_PADDING = "᲼"*5
 DEFAULT_OPTIONS = { "search_limit": DEFAULT_SEARCH_LIMIT, "recomm_limit": DEFAULT_RECOMMENDATION_LIMIT,
@@ -177,6 +177,25 @@ def write_options(options, gid, missing_opts: list):
     return options
 
 
+def get_current_time(gid):
+    global song_start_times, pause_start_times, paused_durations
+    if gid in song_start_times:
+        start_time = song_start_times[gid]
+        current_time = datetime.datetime.now()
+
+        # Adjust the elapsed time for any pauses
+        if pause_start_times[gid] is not None:
+            # If currently paused, add the ongoing pause duration to the total paused duration
+            pause_duration = current_time - pause_start_times[gid]
+        else:
+            pause_duration = datetime.timedelta()
+
+        elapsed_time = (current_time - start_time) - (paused_durations[gid] + pause_duration)
+        return elapsed_time.total_seconds()
+    else:
+        return 0
+
+
 def get_playlist_duration(playlist_url, urls, total_extracted):
     PLAYLIST_YDL_OPTS = {
         'quiet': True,
@@ -228,7 +247,12 @@ def on_song_end(ctx, error):
             dict_current_song[gid] -= 1
         else:
             dict_current_song[gid] += 1
-        if update_current_time.is_running(): update_current_time.stop()
+        try:
+            del song_start_times[gid]
+            del pause_start_times[gid]
+            del paused_durations[gid]
+        except:
+            pass
         bot.loop.create_task(play_next(ctx))
 
 
@@ -489,7 +513,12 @@ async def play_next(ctx, rewinded=0):
     if discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild) is None:
         dict_queue[gid] = []
         dict_current_song[gid] = 0
-        dict_current_time[gid] = 0
+        try:
+            del song_start_times[gid]
+            del pause_start_times[gid]
+            del paused_durations[gid]
+        except:
+            pass
         disable_play = False
         return
     await asyncio.sleep(0.25)
@@ -595,7 +624,7 @@ async def change_channels(ctx, channels):
             await channel_to_send.send(random.choice(insuff_perms_texts),
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts),
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -620,7 +649,7 @@ async def change_channels(ctx, channels):
         if voice_client.is_playing(): voice_client.pause()
         channels = min(max(int(channels), 1), 2)
         vid['audio_options']['channels'] = channels
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, get_current_time(gid))
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                           after=lambda e: on_song_end(ctx, e))
         await channel_to_send.send(change_channels_mode.replace("%mode", 'mono' if channels == 1 else 'stereo'), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -952,13 +981,6 @@ async def on_voice_state_update(member, before, after):
 
 ## BOT TASKS ##
 @tasks.loop(seconds=1)
-async def update_current_time():
-    global dict_current_time
-    for guild in dict_current_time:
-        dict_current_time[guild] += 1
-
-
-@tasks.loop(seconds=1)
 async def vote_skip():
     global vote_skip_dict, vote_skip_counter, message_id_dict, majority_dict, ctx_dict_skip
     if not ctx_dict_skip:
@@ -1019,7 +1041,7 @@ async def help(ctx, *, command_name=None):
                 )
                 embed.add_field(name=help_word_usage, value=command_info['usage'], inline=False)
                 if 'aliases_show' in command_info:
-                    embed.add_field(name=help_word_aliases, value=', '.join(command_info['aliases_show']), inline=False)
+                    embed.add_field(name=help_word_aliases, value=', '.join(command_info['aliases_show']).replace("_", r"\_").replace("*", r"\*"), inline=False)
                 embed.add_field(name=help_word_desc, value=command_info['description'], inline=False)
                 embed.add_field(name=help_word_perm, value=command_info['permission'].replace("_", r"\_").replace("*", r"\*"), inline=False)
                 await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1280,7 +1302,7 @@ async def join(ctx):
 async def leave(ctx, *, tmp='', ignore=False, disconnect=True, ended_queue=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-        global loop_mode, dict_current_song, dict_current_time, disable_play
+        global loop_mode, dict_current_song, disable_play
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not ignore:
             if not check_perms(ctx, "use_leave"):
@@ -1312,7 +1334,13 @@ async def leave(ctx, *, tmp='', ignore=False, disconnect=True, ended_queue=False
             change_active(ctx, mode='d')
             dict_queue[gid] = []
             disable_play = False
-            dict_current_song[gid], dict_current_time[gid] = 0, 0
+            dict_current_song[gid] = 0
+            try:
+                del song_start_times[gid]
+                del pause_start_times[gid]
+                del paused_durations[gid]
+            except:
+                pass
     except:
         traceback.print_exc()
 
@@ -1328,16 +1356,17 @@ async def info(ctx):
             await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-        if voice_client is not None and voice_client.is_playing():
+        if voice_client is not None and voice_client.is_playing() or voice_client.is_paused():
             gid = str(ctx.guild.id)
             dict_queue.setdefault(gid, list())
             dict_current_song.setdefault(gid, 0)
             queue = dict_queue[gid]
             current_song = dict_current_song[gid]
             vid = queue[current_song]
+            current_time = get_current_time(gid)
             if isinstance(vid, str):
                 dict_queue[gid][current_song] = vid = info_from_url(vid)
-            titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
+            titulo, duracion, actual = vid['title'], convert_seconds(int(vid['length'])), convert_seconds(current_time)
             vid_channel = vid['channel'] if vid['channel'] else '???'
             if SPOTIFY_SECRET and SPOTIFY_ID: artista = utilidades.get_spotify_artist(titulo+vid_channel*(vid_channel != "???"), is_song=True)
             else: artista = vid_channel
@@ -1351,7 +1380,7 @@ async def info(ctx):
             embed.add_field(name=word_title, value=titulo)
             embed.add_field(name=word_artist, value=artista)
             embed.add_field(name=word_duration, value=f"`{str(duracion)}`")
-            embed.add_field(name="", value=utilidades.get_bar(int(vid['length']), dict_current_time[gid]), inline=False)
+            embed.add_field(name="", value=utilidades.get_bar(int(vid['length']), current_time), inline=False)
             embed.set_footer(text=f"{vid_channel}", icon_url=vid['channel_image'])
             await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         else:
@@ -1571,7 +1600,7 @@ async def genre(ctx, *, query=""):
 
 @bot.command(name='play', aliases=['p'])
 async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=False, silent=False, attachment=True):
-    global dict_current_song, dict_current_time, disable_play, vote_skip_dict
+    global dict_current_song, disable_play, vote_skip_dict
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
@@ -1886,7 +1915,6 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if end: return
         else:
             vtype = 'video'
-
         try: vid = links[0].copy()
         except: vid = links[0]
         if vid['length'] > MAX_VIDEO_LENGTH:
@@ -1928,34 +1956,36 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         else:
             embed.set_thumbnail(url=img)
             embed2.set_thumbnail(url=img)
-        if vid['stream_url']:
-            if vtype == 'playlist':
-                await channel_to_send.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-            elif voice_client is not None and voice_client.is_playing() and not silent:
-                await channel_to_send.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-            else:
-                dict_current_time[gid] = 0
-                if not silent: await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-
-        else:
+        if not vid['stream_url']:
             await channel_to_send.send(content=random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if not update_current_time.is_running(): update_current_time.start()
 
         if append:
             dict_queue[gid] = dict_queue.setdefault(gid, list())
             dict_current_song[gid] = dict_current_song.setdefault(gid, 0)
             for video in links:
                 dict_queue[gid].append(video)
+
         # LVL HANDLE
         await update_level_info(ctx, ctx.author.id, LVL_PLAY_ADD)
         vote_skip_dict[gid] = -1
+
+        if vtype == 'playlist':
+            await channel_to_send.send(embed=embed_playlist, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        if voice_client is not None and voice_client.is_playing() and not silent:
+            await channel_to_send.send(embed=embed2, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        else:
+            song_start_times[gid] = datetime.datetime.now()
+            paused_durations[gid] = datetime.timedelta()
+            pause_start_times[gid] = None
+            if not silent: await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+
         if voice_client and not voice_client.is_paused():
             try:
                 if not voice_client.is_playing():
                     updated_options = FFMPEG_OPTIONS.copy()
                     if isinstance(url, dict):  # means song was already loaded, aka could have been changed in volume, pitch, etc
-                        updated_options['options'] += get_updated_options(vid, dict_current_time[gid], get_options_only=True)
+                        updated_options['options'] += get_updated_options(vid, get_current_time(gid), get_options_only=True)
                     stream_url = vid['stream_url'] if isinstance(vid, dict) else url
                     voice_client.play(discord.FFmpegPCMAudio(stream_url, **updated_options), after=lambda e: on_song_end(ctx, e))
                     voice_client.is_playing()
@@ -2030,7 +2060,7 @@ async def remove(ctx, index):
         if not check_perms(ctx, "use_remove"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_current_song, dict_current_time
+        global dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2057,9 +2087,11 @@ async def remove(ctx, index):
             vid = info_from_url(vid)
         queue.pop(index)
         await channel_to_send.send(removed_from_queue.replace("%title", vid['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-        dict_current_time[gid] = 0
         if index == current_song:
             dict_current_song[gid] = current_song - 2 if current_song > 1 else -1
+            del song_start_times[gid]
+            del pause_start_times[gid]
+            del paused_durations[gid]
             await skip(ctx)
         elif index < current_song:
             dict_current_song[gid] = current_song - 1
@@ -2086,7 +2118,7 @@ async def forward(ctx, time):
         if not check_perms(ctx, "use_forward"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_current_time, seek_called, dict_queue, dict_current_song
+        global seek_called, dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2096,7 +2128,7 @@ async def forward(ctx, time):
         dict_current_song.setdefault(gid, 0)
         queue = dict_queue[gid]
         current_song = dict_current_song[gid]
-        if not voice_client or not voice_client.is_playing() or not queue:
+        if not voice_client or not queue or not voice_client.is_playing() and not voice_client.is_paused():
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
@@ -2116,21 +2148,27 @@ async def forward(ctx, time):
             if '+' in time: temptime = time.replace('+', '')
             if '-' in time: temptime, symbol = time.replace('-', ''), '-'
             time = int(symbol + str(convert_formated(temptime)))
-        dict_current_time[gid] += time
-        if dict_current_time[gid] > vid['length'] and not vid['type'] == 'raw_audio':
+        if time > 0: song_start_times[gid] -= datetime.timedelta(seconds=time)
+        else: song_start_times[gid] += datetime.timedelta(seconds=-1*time)
+        current_time = get_current_time(gid)
+        if current_time > vid['length'] and not vid['type'] == 'raw_audio':
             await skip(ctx)
             return
-        if dict_current_time[gid] < 0: dict_current_time[gid] = 0
+        if current_time < 0:
+            current_time = 0
+            song_start_times[gid] = datetime.datetime.now()
+            paused_durations[gid] = datetime.timedelta()
+            pause_start_times[gid] = None
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, current_time)
         voice_client.play(
                 discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
             after=lambda e: on_song_end(ctx, e))
 
-        duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
-        bar = utilidades.get_bar(int(vid['length']), dict_current_time[gid])
+        duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(current_time)
+        bar = utilidades.get_bar(int(vid['length']), current_time)
         tmp_mode = fast_forwarding.replace("%emoji", ":fast_forward:") if time >= 0 else rewinding.replace("%emoji", ":arrow_backward:")
         modetype = INV_CHAR_PADDING + tmp_mode
         embed = discord.Embed(
@@ -2152,7 +2190,7 @@ async def seek(ctx, time):
         if not check_perms(ctx, "use_seek"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_current_time, seek_called, dict_queue, dict_current_song
+        global seek_called, dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2165,7 +2203,7 @@ async def seek(ctx, time):
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if not voice_client or not voice_client.is_playing() or not queue:
+        if not voice_client or not queue or not voice_client.is_playing() and not voice_client.is_paused():
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         vid = queue[current_song]
@@ -2174,31 +2212,35 @@ async def seek(ctx, time):
         if vid['type'] == 'live':
             await channel_to_send.send(cannot_change_time_live.replace("%command", "seek"), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if str(time).isnumeric():
+        if str(time).replace("-", "").isnumeric():
             time = int(time)
-            if time < 0: time = 0
-            if time > vid['length'] and not vid['type'] == 'raw_audio':
-                await skip(ctx)
-                return
-            dict_current_time[gid] = time
         else:
-            dict_current_time[gid] = int(convert_formated(time))
+            time = int(convert_formated(time))
+        if time < 0: time = 0
+        if time > vid['length'] and not vid['type'] == 'raw_audio':
+            await skip(ctx)
+            return
+        current_time = datetime.datetime.now()
+        song_start_times[gid] = current_time - datetime.timedelta(seconds=time)
+        paused_durations[gid] = datetime.timedelta()
+        pause_start_times[gid] = None
+        current_time = get_current_time(gid)
+
         seek_called = True
         if voice_client.is_paused(): voice_client.resume()
         voice_client.stop()
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, current_time)
         voice_client.play(
             discord.FFmpegPCMAudio(vid['stream_url'], **updated_options),
             after=lambda e: on_song_end(ctx, e))
 
-        duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(dict_current_time[gid])
+        duracion, actual = convert_seconds(int(vid['length'])), convert_seconds(current_time)
         embed = discord.Embed(
             title=INV_CHAR_PADDING + seek_title.replace("%time", str(actual)),
-            description=f"{utilidades.get_bar(int(vid['length']), dict_current_time[gid])}",
+            description=f"{utilidades.get_bar(int(vid['length']), current_time)}",
             color=EMBED_COLOR
         )
         await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-
     except:
         traceback.print_exc()
         await channel_to_send.send(random.choice(invalid_use_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2241,7 +2283,7 @@ async def shuffle(ctx):
         if not check_perms(ctx, "use_shuffle"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_current_song, dict_current_time
+        global dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2258,8 +2300,9 @@ async def shuffle(ctx):
         if voice_client.is_playing(): voice_client.pause()
         dict_current_song[gid] = -1
         random.shuffle(queue)
-        if update_current_time.is_running(): update_current_time.stop()
-        dict_current_time[gid] = 0
+        del song_start_times[gid]
+        del pause_start_times[gid]
+        del paused_durations[gid]
         await skip(ctx)
         return True
     except:
@@ -2307,11 +2350,12 @@ async def pause(ctx):
         if voice_client is not None and ctx.author.voice.channel != voice_client.channel:
             await channel_to_send.send(random.choice(different_channel_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if not voice_client or not voice_client.is_playing() or not queue:
+        if not voice_client or not queue or not voice_client.is_playing():
+            if voice_client.is_paused(): return
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client.pause()
-        if update_current_time.is_running(): update_current_time.stop()
+        pause_start_times[gid] = datetime.datetime.now()
     except:
         traceback.print_exc()
 
@@ -2338,7 +2382,9 @@ async def resume(ctx):
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         voice_client.resume()
-        if not update_current_time.is_running(): update_current_time.start()
+        pause_duration = datetime.datetime.now() - pause_start_times[gid]
+        paused_durations[gid] += pause_duration
+        pause_start_times[gid] = None
     except:
         traceback.print_exc()
 
@@ -2696,7 +2742,7 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
         if not check_perms(ctx, "use_pitch"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2721,7 +2767,7 @@ async def pitch(ctx, semitones=None, speed=1.0, *, silent=False):
         pitch_factor = min(max(0.01, 2**((float(semitones))/12)), 2)
         vid['audio_options']['pitch'] = pitch_factor
         vid['audio_options']['speed'] = speed
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, get_current_time(gid))
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
         if not silent:
@@ -2742,7 +2788,7 @@ async def volume(ctx, volume: str):
         if not check_perms(ctx, "use_volume"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -2773,7 +2819,7 @@ async def volume(ctx, volume: str):
         if isinstance(vid, str):
             dict_queue[gid][current_song] = vid = info_from_url(vid)
         vid['audio_options']['volume'] = vol_db
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, get_current_time(gid))
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                               after=lambda e: on_song_end(ctx, e))
         embed = discord.Embed(
@@ -2794,7 +2840,7 @@ async def eq(ctx, eqtype="bass", strength="5", silent=False):
             await channel_to_send.send(random.choice(insuff_perms_texts),
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         if not ctx.author.voice:
             await channel_to_send.send(random.choice(not_in_vc_texts),
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2826,7 +2872,7 @@ async def eq(ctx, eqtype="bass", strength="5", silent=False):
             return
         if voice_client.is_playing(): voice_client.pause()
         vid['audio_options'][eqtype] = strength
-        updated_options = get_updated_options(vid, dict_current_time[gid])
+        updated_options = get_updated_options(vid, get_current_time(gid))
         voice_client.play(discord.FFmpegPCMAudio(queue[current_song]['stream_url'], **updated_options),
                           after=lambda e: on_song_end(ctx, e))
         if not silent:
@@ -2881,7 +2927,7 @@ async def shazam(ctx, clip_length='15'):
         if not check_perms(ctx, "use_shazam"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
@@ -2890,8 +2936,7 @@ async def shazam(ctx, clip_length='15'):
         if not queue:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        dict_current_time.setdefault(gid, 0)
-        start_time = dict_current_time[gid]
+        start_time = get_current_time(gid)
         vid = queue[current_song]
         if isinstance(vid, str):
             dict_queue[gid][current_song] = vid = info_from_url(vid)
@@ -2945,7 +2990,7 @@ async def autodj(ctx, *, url="", ignore=False):
         if not check_perms(ctx, "use_autodj"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time, loop_mode
+        global dict_queue, dict_current_song, loop_mode
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
         dict_current_song.setdefault(gid, 0)
@@ -2962,7 +3007,7 @@ async def autodj(ctx, *, url="", ignore=False):
             await fastplay(ctx, url=url)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if voice_client is None: return
-        start_time = dict_current_time[gid]
+        start_time = get_current_time(gid)
         vid = queue[current_song-int(1*ignore)]
         if isinstance(vid, str):
             dict_queue[gid][current_song] = vid = info_from_url(vid)
@@ -3178,7 +3223,7 @@ async def reverse(ctx):
         if not check_perms(ctx, "use_reverse"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
 
         gid = str(ctx.guild.id)
         dict_queue.setdefault(gid, list())
@@ -3202,7 +3247,9 @@ async def reverse(ctx):
             return
 
         dict_current_song[gid] = -1
-        dict_current_time[gid] = 0
+        del song_start_times[gid]
+        del pause_start_times[gid]
+        del paused_durations[gid]
         queue.reverse()
         await skip(ctx)
         await channel_to_send.send(queue_reversed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -3291,7 +3338,7 @@ async def parameter(ctx, parameter=None, *, value=None):
 @bot.command(name='playlist', aliases=['playlists', 'favorites', 'favourites', 'fav', 'favs'])
 async def playlist(ctx, mode, playlist_name="", *, query=""):
     try:
-        global dict_queue, dict_current_song, dict_current_time
+        global dict_queue, dict_current_song
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not check_perms(ctx, "use_playlist"):
@@ -3460,7 +3507,7 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                 await channel_to_send.send(playlist_no_songs.replace("%pl_name", playlist_name),
                                            reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
-            if not voice_client or not voice_client.is_playing():
+            if not voice_client or not voice_client.is_playing() and not voice_client.is_paused():
                 await play(ctx, url=links[0], search=False)
             else:
                 links.insert(0, links[0])

@@ -133,7 +133,7 @@ if True: # only to minimize
     top_songs_title = "🔝 — Top %number songs of %artist"
     chords_title = "🎼 — Chords of %song, %artist"
     tuning_embed_title = "ℹ️ — Tuning information"
-    tuning_embed_desc = "➤ **Tonality**: %tonality\n➤ **Capo**: %capo%th\n➤ **Tuning**: %tuning_value (%tuning_name)\n➤ **Trasposed**: %traspose"
+    tuning_embed_desc = "➤ **Tonality**: %tonality\n➤ **Capo**: %capo%th\n➤ **Tuning**: %tuning_value (%tuning_name)\n➤ **Transposed**: %traspose"
     no_capo_chords = "No capo"
     pitch_title = "🎤 - Pitch changed"
     pitch_desc = "➤ **Pitch**: %sign%tone\n➤ **Speed**: x%speed"
@@ -485,7 +485,7 @@ if True: # only to minimize
                 'usage': 'chords [query]',
                 'description_short': 'Shows the chords of a song.',
                 'description': 'Shows the chords of the song currently playing, or the song given in the query.\n'
-                               'Add `-t <semitones>` to the query to traspose the chords.',
+                               'Add `-t <semitones>` to the query to transpose the chords.',
                 'permission': 'use_chords'
             },
             'songs': {
@@ -652,96 +652,6 @@ if True: # only to minimize
             },
         }
     }
-    command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
-                          f"➤ Description: Shows all commands, if a command is given it shows more info about it."
-    command_desc_play = f"➤ Use: `play [query or url] [nothing/-opt option]`\n➤ Aliases: `p`\n" \
-                          f"➤ Description: Plays the given song. If -opt gif is added at the end, a gif is added (try it!)."
-    command_desc_leave = f"➤ Use: `leave`\n➤ Aliases: `l`, `dis`, `disconnect`, `d`\n" \
-                           f"➤ Description: Disconnects the bot from the voice channel and clears the queue."
-    command_desc_skip = f"➤ Use: `skip`\n➤ Aliases: `s`, `next`\n" \
-                          f"➤ Description: Skips to the next song."
-    command_desc_join = f"➤ Use: `join`\n➤ Aliases: `connect`\n" \
-                          f"➤ Description: Connects to the voice channel."
-    command_desc_pause = f"➤ Use: `pause`\n➤ Aliases: `stop`\n" \
-                           f"➤ Description: Pauses the song."
-    command_desc_resume = f"➤ Use: `resume`\n" \
-                            f"➤ Description: Resumes the song."
-    command_desc_queue = f"➤ Use: `queue`\n➤ Aliases: `q`\n" \
-                           f"➤ Description: Shows the song queue."
-    command_desc_loop = f"➤ Use: `loop [all/queue/shuffle/random/off]`\n➤ Aliases: `lp`\n" \
-                          f"➤ Description: Changes the loop mode; `all/queue` repeats the whole queue, " \
-                          f"`shuffle/random` randomize the next song when the current one is finished, " \
-                          f"`one` repeats the current song, `off` disables the loop."
-    command_desc_shuffle = f"➤ Use: `shuffle`\n➤ Aliases: `sf`, `random`\n" \
-                             f"➤ Description: Randomizes the queue, then goes to the first song."
-    command_desc_info = f"➤ Use: `np`\n➤ Aliases: `info`, `nowplaying`, `playing`\n" \
-                          f"➤ Description: Shows information of the current song."
-    command_desc_lyrics = f"➤ Use: `lyrics [nothing/song name]`\n➤ Aliases: `lyric`\n" \
-                            f"➤ Description: Shows the lyrics of the current playing song, if given a name of a song " \
-                            f"it shows the lyrics to that song."
-    command_desc_songs = f"➤ Use: `songs [nothing/NUM] [artist]`\n➤ Aliases: `song`\n" \
-                           f"➤ Description: Shows the top NUM songs of the given artist (10 if no NUM provided)." \
-                           f" If no artist is provided, it retrieves it from the current playing song."
-    command_desc_steam = f"➤ Use: `steam [user]`\n➤ Description: Shows the steam profile of the given user."
-    command_desc_remove = f"➤ Use: `remove [song number]`\n➤ Aliases: `rm`" \
-                            f"➤ Description: Removes the given song from the queue (use `queue` to see the songs and their numbers)."
-    command_desc_goto = f"➤ Use: `goto [song number]`\n➤ Description: Goes to the chosen song."
-    command_desc_ping = f"➤ Use: `ping`\n➤ Description: Shows the bot latency."
-    command_desc_avatar = f"➤ Use: `avatar`\n➤ Aliases: `pfp`, `profile`\n" \
-                            f"➤ Description: Shows your profile picture (HD)."
-    command_desc_level = f"➤ Use: `level`\n➤ Aliases: `lvl`\n" \
-                           f"➤ Description: Shows your level."
-    command_desc_chatgpt = f"➤ Use: `chatgpt [message]`\n➤ Aliases: `chat`, `gpt`\n" \
-                             f"➤ Description: Answers with ChatGPT your message."
-    command_desc_seek = f"➤ Use: `seek [time]`\n➤ Aliases: `sk`\n" \
-                          f"➤ Description: Goes to the given time. Time should be given in seconds or in format HH:MM:SS."
-    command_desc_chords = f"➤ Use: `chords [nothing/song]`\n" \
-                            f"➤ Description: Shows the chords of the current song, if given a song it shows the chords to that song."
-    command_desc_genre = f"➤ Use: `genre [nothing/genre]`\n➤ Aliases: `genres`, `recomm`, `recommendation`, `recommendations`\n" \
-                           f"➤ Description: Shows songs of the given genre, if nothing (or available) is put, shows the list of genres."
-    command_desc_search = f"➤ Use: `search [nothing/youtube/spotify] [query]`\n➤ Aliases: `find`\n" \
-                            f"➤ Description: Searches in youtube (default) or spotify the given query and shows the results."
-    command_desc_rewind = f"➤ Use: `rewind`\n➤ Aliases: `rw`, `r`, `back`\n" \
-                            f"➤ Description: Goes back to the previous song."
-    command_desc_forward = f"➤ Use: `forward [time]`\n➤ Aliases: `fw`, `forwards`, `bw`, `backward`, `backwards`\n" \
-                             f"➤ Description: Fast forwards or rewinds the song (depending if the time is positive/negative). " \
-                             f"Time should be given in seconds or in format HH:MM:SS."
-    command_desc_options = f"➤ Use: `config [nothing/option] [value]`\n➤ Aliases: `options`, `opt`, `cfg`\n" \
-                             f"➤ Description: Changes the value of the given option to the given value, if no option is given, " \
-                             f"shows the list of options."
-    command_desc_fastplay = f"➤ Use: `fastplay [song name or url]`\n➤ Aliases: `fp`\n" \
-                              f"➤ Description: Plays a song without having to choose."
-    command_desc_perms = f"➤ Use: `perms`\n➤ Aliases: `prm`\n" \
-                           f"➤ Description: Shows %bot_name (the bot) current permissions in the server."
-    command_desc_add_prefix = f"➤ Use: `add_prefix [prefix]`\n➤ Aliases: `prefix`, `set_prefix`\n" \
-                                f"➤ Description: Adds the given prefix to use it for commands."
-    command_desc_del_prefix = f"➤ Use: `del_prefix [prefix]`\n➤ Aliases: `remove_prefix`, `rem_prefix`\n" \
-                                f"➤ Description: Removes the given prefix."
-    command_desc_add_perm = f"➤ Use: `add_perm [name/ALL] [permission]`\n" \
-                              f"➤ Description: Adds the given permission to the specified user (or all users)."
-    command_desc_del_perm = f"➤ Use: `del_perm [name/ALL] [permission]`\n" \
-                              f"➤ Description: Removes the given permission from the specified user (or all users)."
-    command_desc_available_perms = f"➤ Use: `available_perms`\n" \
-                                     f"➤ Description: Shows the available permissions and the ones that are given by default to" \
-                                     f" all users (admins get all permissions)."
-    command_desc_pitch = f"➤ Use: `pitch [semitones]`\n➤ Aliases: `tone`\n" \
-                           f"➤ Description: Changes the pitch of the current song in the given semitones. " \
-                           f"(positive: higher pitch, negative: lower pitch)."
-    command_desc_lang =  f"➤ Use: `lang [language]`\n➤ Aliases: `language`, `change_lang`, `change_language`\n" \
-                           f"➤ Description: Changes the language of the bot (english: en, spanish: es)."
-    command_commands = "➤ `help [nothing/command] (h)`\n➤ `play [query or url] [nothing/-opt option] (p)`\n" \
-                         "➤ `leave (l, dis, disconnect, d)`\n➤ `skip (s, next)`\n➤ `join (connect)`\n➤ `pause (stop)`\n" \
-                         "➤ `resume`\n➤ `queue (q)`\n➤ `loop [all/queue/shuffle/random/one/off] (lp)`\n➤ `shuffle (sf, random)`\n" \
-                         "➤ `np (info, nowplaying, playing)`\n➤ `lyrics [nothing/song name] (lyric)`\n" \
-                         "➤ `songs [nothing/NUM] [artist] (song)`\n➤ `steam [user]`\n➤ `remove [song number] (rm)`" \
-                         "\n➤ `goto [song number]`\n➤ `search [nothing/youtube/spotify] [query] (find)`\n➤ `ping`\n➤ `avatar (pfp, profile)`\n" \
-                         "➤ `level (lvl)`\n➤ `chatgpt [message] (chat, gpt)`\n➤ `seek [time] (sk)`\n➤ `chords [nothing/song name]`\n" \
-                         "➤ `genre [nothing/genre] (genres, recomm, recommendation, recommendations)`\n" \
-                         "➤ `forward [time] (fw, forwards, bw, backward, backwards)`\n➤ `config [nothing/option] [value] " \
-                         "(cfg, options, opt)`\n➤ `fastplay [query or url] (fp)`\n➤ `perms (prm)`\n" \
-                         "➤ `add_prefix [prefix] (prefix, set_prefix)`\n➤ `del_prefix [prefix] (rem_prefix, remove_prefix)`\n" \
-                         "➤ `add_perm [name/ALL] [permission]`\n➤ `del_perm [name/ALL] [permission]`\n➤ `available_perms`\n" \
-                         "➤ `pitch [semitones] (tone)`"
 
 en_data = dict()
 a = vars().copy()
@@ -930,98 +840,472 @@ if True: # only to minimize
     parameter_perm_added_externally = "El parámetro `use_parameter` solo se puede agregar externamente."
     song_queue_ended = "La cola de canciones terminó."
     timeout_footer = "Límite de tiempo: %times"
-    command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
-                          f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
-    command_desc_play = f"➤ Uso: `play [canción o link] [nada/-opt opción]`\n➤ Aliases: `p`\n" \
-                          f"➤ Descripción: Toca la canción dada. Si se agrega -opt gif al final, se añade un gif (¡prúebalo!)."
-    command_desc_leave = f"➤ Uso: `leave`\n➤ Aliases: `l`, `dis`, `disconnect`, `d`\n" \
-                           f"➤ Descripción: Desconecta al bot del canal de voz."
-    command_desc_skip = f"➤ Uso: `skip`\n➤ Aliases: `s`, `next`\n" \
-                          f"➤ Descripción: Salta a la siguiente canción."
-    command_desc_join = f"➤ Uso: `join`\n➤ Aliases: `connect`\n" \
-                          f"➤ Descripción: Conecta al bot al canal de voz."
-    command_desc_pause = f"➤ Uso: `pause`\n➤ Aliases: `stop`\n" \
-                           f"➤ Descripción: Pausa la canción."
-    command_desc_resume = f"➤ Uso: `resume`\n" \
-                            f"➤ Descripción: Reaunuda la canción."
-    command_desc_queue = f"➤ Uso: `queue`\n➤ Aliases: `q`\n" \
-                           f"➤ Descripción: Muestra la cola de canciones."
-    command_desc_loop = f"➤ Uso: `loop [all/queue/shuffle/random/off]`\n➤ Aliases: `lp`\n" \
-                          f"➤ Descripción: Cambia el modo de loop; `all/queue` repite toda la cola, " \
-                          f"`shuffle/random` elige una canción aleatoria cuando la actual termine, " \
-                          f"`one` repite la canción actual, `off` desactiva el loop."
-    command_desc_shuffle = f"➤ Uso: `shuffle`\n➤ Aliases: `sf`, `random`\n" \
-                             f"➤ Descripción: Aleatoriza la cola, luego va a la primera canción."
-    command_desc_info = f"➤ Uso: `np`\n➤ Aliases: `info`, `nowplaying`, `playing`\n" \
-                          f"➤ Descripción: Muestra información de la canción actual."
-    command_desc_lyrics = f"➤ Uso: `lyrics [nada/canción]`\n➤ Aliases: `lyric`\n" \
-                            f"➤ Descripción: Muestra la letra de la canción actual si no se especifica nada, si no muestra la letra " \
-                            f"de la canción dada."
-    command_desc_songs = f"➤ Uso: `songs [nada/NUM] [artista]`\n➤ Aliases: `song`\n" \
-                           f"➤ Descripción: Muestra el top NUM de canciones del artista dado (10 si no especifica NUM)." \
-                           f" Si no se especifica el artista, lo toma de la canción actual."
-    command_desc_steam = f"➤ Uso: `steam [usuario]`\n➤ Descripción: Muestra el perfil de steam del usuario dado."
-    command_desc_remove = f"➤ Uso: `remove [número de canción]`\n➤ Aliases: `rm`" \
-                            f"➤ Descripción: Borra la canción dada de la cola (usar `queue` para ver las canciones y sus números)."
-    command_desc_goto = f"➤ Uso: `goto [número de canción]`\n➤ Descripción: Va a la canción elegida."
-    command_desc_ping = f"➤ Uso: `ping`\n➤ Descripción: Muestra la latencia del bot."
-    command_desc_avatar = f"➤ Uso: `avatar`\n➤ Aliases: `pfp`, `profile`\n" \
-                            f"➤ Descripción: Muestra tu foto de perfil (HD)."
-    command_desc_level = f"➤ Uso: `level`\n➤ Aliases: `lvl`\n" \
-                           f"➤ Descripción: Muestra tu nivel."
-    command_desc_chatgpt = f"➤ Uso: `chatgpt [mensaje]`\n➤ Aliases: `chat`, `gpt`\n" \
-                             f"➤ Descripción: Responde a tu mensaje con ChatGPT."
-    command_desc_seek = f"➤ Uso: `seek [tiempo]`\n➤ Aliases: `sk`\n" \
-                          f"➤ Descripción: Va al tiempo elegido. El tiempo deberia darse en segundos o en formato HH:MM:SS."
-    command_desc_chords = f"➤ Uso: `chords [nada/canción]`\n" \
-                            f"➤ Descripción: Muestra los acordes de la canción actual si no se especifica una canción," \
-                            f" si no muestra los acordes de dicha canción."
-    command_desc_genre = f"➤ Uso: `genre [nada/género]`\n➤ Aliases: `genres`, `recomm`, `recommendation`, `recommendations`\n" \
-                           f"➤ Descripción: Muestra canciones del género dado, muestra una lista de los géneros disponibles " \
-                           f"si no se especifica nada (o se pone available)."
-    command_desc_search = f"➤ Uso: `search [nada/youtube/spotify] [búsqueda]`\n➤ Aliases: `find`\n" \
-                            f"➤ Descripción: Busca en youtube (por defecto) o spotify y muestra los resultados."
-    command_desc_rewind = f"➤ Uso: `rewind`\n➤ Aliases: `rw`, `r`, `back`\n" \
-                            f"➤ Descripción: Vuelve a la canción anterior."
-    command_desc_forward = f"➤ Uso: `forward [tiempo]`\n➤ Aliases: `fw`, `forwards`, `bw`, `backward`, `backwards`\n" \
-                             f"➤ Descripción: Adelanta o rebobina la canción (dependiendo de si el tiempo es positivo/negativo). " \
-                             f"El tiempo deberia darse en segundos o en formato HH:MM:SS."
-    command_desc_options = f"➤ Uso: `config [nada/opción] [valor]`\n➤ Aliases: `options`, `opt`, `cfg`\n" \
-                             f"➤ Descripción: Cambia el valor de la opción dada al valor especificado. Si no se da una opción," \
-                             f" muestra una lista de las opciones disponibles."
-    command_desc_fastplay = f"➤ Uso: `fastplay [canción o link]`\n➤ Aliases: `fp`\n" \
-                              f"➤ Descripción: Toca una canción sin tener que elegir."
-    command_desc_perms = f"➤ Uso: `perms`\n➤ Aliases: `prm`\n" \
-                           f"➤ Descripción: Muestra los permisos de %bot_name (el bot) en el server."
-    command_desc_add_prefix = f"➤ Uso: `add_prefix [prefijo]`\n➤ Aliases: `prefix`, `set_prefix`\n" \
-                                f"➤ Descripción: Añade el prefijo dado."
-    command_desc_del_prefix = f"➤ Uso: `del_prefix [prefijo]`\n➤ Aliases: `remove_prefix`, `rem_prefix`\n" \
-                                f"➤ Descripción: Borra el prefijo dado."
-    command_desc_add_perm = f"➤ Uso: `add_perm [nombre/ALL] [permiso]`\n" \
-                              f"➤ Descripción: Añade el permiso especificado al usuario dado (o a todos)."
-    command_desc_del_perm = f"➤ Uso: `del_perm [nombre/ALL] [permiso]`\n" \
-                              f"➤ Descripción: Borra el permiso especificado del usuario dado (o de todos)."
-    command_desc_available_perms = f"➤ Uso: `available_perms`\n" \
-                                     f"➤ Descripción: Muestra los permisos disponibles y los que son dados por defecto " \
-                                     f"a todos los usuarios (los administradores obtienen todos los permisos)."
-    command_desc_pitch = f"➤ Uso: `pitch [semitonos]`\n➤ Aliases: `tone`\n" \
-                           f"➤ Descripción: Cambia el tono de la canción los semitonos dados " \
-                           f"(positivo: más agudo, negativo: más grave)."
-    command_desc_lang = f"➤ Uso: `lang [lenguaje]`\n➤ Aliases: `language`, `change_lang`, `change_language`\n" \
-                          f"➤ Descripción: Cambia el lenguaje del bot (inglés: en, español: es)."
-    command_commands = "➤ `help [nada/comando] (h)`\n➤ `play [canción o link] [nada/-opt] (p)`\n" \
-                         "➤ `leave (l, dis, disconnect, d)`\n➤ `skip (s, next)`\n➤ `join (connect)`\n➤ `pause (stop)`\n" \
-                         "➤ `resume`\n➤ `queue (q)`\n➤ `loop [all/queue/shuffle/random/one/off] (lp)`\n➤ `shuffle (sf, random)`\n" \
-                         "➤ `np (info, nowplaying, playing)`\n➤ `lyrics [nada/canción] (lyric)`\n" \
-                         "➤ `songs [nada/NUM] [artista] (song)`\n➤ `steam [usuario]`\n➤ `remove [número de canción] (rm)`" \
-                         "\n➤ `goto [número de canción]`\n➤ `search [nada/youtube/spotify] [búsqueda] (find)`\n➤ `ping`\n➤ `avatar (pfp, profile)`\n" \
-                         "➤ `level (lvl)`\n➤ `chatgpt [mensaje] (chat, gpt)`\n➤ `seek [tiempo] (sk)`\n➤ `chords [nada/canción]`\n" \
-                         "➤ `genre [nada/género] (genres, recomm, recommendation, recommendations)`\n" \
-                         "➤ `forward [tiempo] (fw, forwards, bw, backward, backwards)`\n➤ `config [nada/opción] [valor] " \
-                         "(cfg, options, opt)`\n➤ `fastplay [canción o link] (fp)`\n➤ `perms (prm)`\n" \
-                         "➤ `add_prefix [prefijo] (prefix, set_prefix)`\n➤ `del_prefix [prefijo] (rem_prefix, remove_prefix)`\n" \
-                         "➤ `add_perm [nombre/ALL] [permiso]`\n➤ `del_perm [nombre/ALL] [permiso]`\n➤ `available_perms`\n" \
-                         "➤ `pitch [semitonos] (tone)`"
+    CATEGORY_DESC = {
+        'general': '🌐 — Comandos de utilidad generales',
+        'música_principal': '🎵 — Comandos de música',
+        'música_secundario': '🎵 — Más comandos de música',
+        'misceláneo': '🧩 — Comandos varios',
+        'configuración': '🛠️ — Comandos de configuración de server',
+    }
+    COMMANDS_INFO = {
+        'general': {
+            'help': {
+                'usage': 'help [comando]',
+                'aliases': ['h'],
+                'aliases_show': ['h'],
+                'description_short': 'Muestra el mensaje de ayuda.',
+                'description': 'Muestra el mensaje de ayuda o información del comando dado.',
+                'permission': 'use_help'
+            },
+            'ping': {
+                'usage': 'ping',
+                'description': 'Muestra la latencia del bot.',
+                'description_short': 'Muestra la latencia del bot.',
+                'permission': 'use_ping'
+            },
+            'join': {
+                'usage': 'join',
+                'aliases': ['connect'],
+                'aliases_show': ['connect'],
+                'description_short': 'Conecta al bot.',
+                'description': 'Conecta al bot al canal de voz.',
+                'permission': 'use_join'
+            },
+            'leave': {
+                'usage': 'leave',
+                'aliases': ['l', 'dis', 'disconnect', 'd'],
+                'aliases_show': ['l', 'dis', 'disconnect', 'd'],
+                'description_short': 'Desconecta al bot y borra la cola.',
+                'description': 'Desconecta al bot del canal de voz y borra la cola de canciones.',
+                'permission': 'use_leave'
+            },
+        },
+        'música principal': {
+            'play': {
+                'usage': 'play <entrada/archivo>',
+                'aliases': ['p'],
+                'aliases_show': ['p'],
+                'description_short': 'Reproduce la canción dada.',
+                'description': f'Reproduce una canción, que puede ser un link de '
+                               f'[estos]({FCHAR}https://github.com/Coskon/coskmusicbot/blob/main/TESTED_SITES.md{FCHAR}) '
+                               f'sitios/servicios o un link de audio directo, una entrada para buscar en youtube o del archivo/los archivos adjuntos.',
+                'permission': 'use_play'
+            },
+            'fastplay': {
+                'usage': 'fastplay <entrada/archivo>',
+                'aliases': ['fp'],
+                'aliases_show': ['fp'],
+                'description_short': 'Reproduce la primera canción de la búsqueda.',
+                'description': 'Igual que el comando `play`, pero se salta la elección de una canción cuando se busca.',
+                'permission': 'use_fastplay'
+            },
+            'leave': {
+                'usage': 'leave',
+                'aliases': ['l', 'dis', 'disconnect', 'd'],
+                'aliases_show': ['l', 'dis', 'disconnect', 'd'],
+                'description_short': 'Desconecta al bot y borra la cola.',
+                'description': 'Desconecta al bot del canal de voz y borra la cola de canciones.',
+                'permission': 'use_leave'
+            },
+            'skip': {
+                'usage': 'skip',
+                'aliases': ['s', 'next'],
+                'aliases_show': ['s', 'next'],
+                'description_short': 'Salta a la siguiente canción.',
+                'description': 'Salta a la siguiente canción o, si el usuario no tiene permisos, inicia una votación.',
+                'permission': 'use_skip'
+            },
+            'rewind': {
+                'usage': 'rewind',
+                'aliases': ['rw', 'r', 'back'],
+                'aliases_show': ['rw', 'r', 'back'],
+                'description_short': 'Vuelve a la canción anterior.',
+                'description': 'Vuelve a la canción anterior.',
+                'permission': 'use_rewind'
+            },
+            'pause': {
+                'usage': 'pause',
+                'aliases': ['stop'],
+                'aliases_show': ['stop'],
+                'description_short': 'Pausa la canción.',
+                'description': 'Pausa la canción actual.',
+                'permission': 'use_pause'
+            },
+            'resume': {
+                'usage': 'resume',
+                'description_short': 'Reaunuda la canción.',
+                'description': 'Reaunuda la canción actual.',
+                'permission': 'use_resume'
+            },
+            'queue': {
+                'usage': 'queue',
+                'aliases': ['q'],
+                'aliases_show': ['q'],
+                'description_short': 'Muestra la cola de canciones.',
+                'description': 'Muestra la cola de canciones, y obtiene información de los videos que no están cargados '
+                               '(usarlo para acelerar la reproducción de las siguientes canciones)',
+                'permission': 'use_queue'
+            },
+            'remove': {
+                'usage': 'remove <número>',
+                'aliases': ['rm'],
+                'aliases_show': ['rm'],
+                'description_short': 'Borra la canción seleccionada.',
+                'description': 'Borra la canción seleccionada de la cola de canciones por su posición',
+                'permission': 'use_remove'
+            },
+            'goto': {
+                'usage': 'goto <número>',
+                'description_short': 'Va a la canción seleccionada.',
+                'description': 'Va a la canción seleccionada por su posición',
+                'permission': 'use_goto'
+            },
+            'loop': {
+                'usage': 'loop [modo]',
+                'aliases': ['lp'],
+                'aliases_show': ['lp'],
+                'description_short': 'Cambia el modo de loop.',
+                'description': 'Cambia el modo de loop: '
+                               '`all/queue` repite la cola de canciones, '
+                               '`shuffle/random` randomiza la canción que sonará después, '
+                               '`one` repite la canción actual, '
+                               '`autodj` habilita la reproducción automática y `off` deshabilita el loop. '
+                               'Si no se da un modo cambia entre `all` y `off`.',
+                'permission': 'use_loop'
+            },
+            'seek': {
+                'usage': 'seek <tiempo>',
+                'aliases': ['sk'],
+                'aliases_show': ['sk'],
+                'description_short': 'Va al tiempo dado.',
+                'description': 'Va al tiempo dado, el tiempo puede ser dado en segundos o en formato HH:MM:SS.',
+                'permission': 'use_seek'
+            },
+            'forward': {
+                'usage': 'forward <tiempo>',
+                'aliases': ['fw', 'forwards', 'ff'],
+                'aliases_show': ['fw', 'forwards', 'ff'],
+                'description_short': 'Adelanta el tiempo especificado.',
+                'description': 'Adelanta el tiempo especificado, el tiempo puede ser dado en segundos o en formato HH:MM:SS.',
+                'permission': 'use_forward'
+            },
+            'backward': {
+                'usage': 'backward <tiempo>',
+                'aliases': ['backwards', 'bw'],
+                'aliases_show': ['backwards', 'bw'],
+                'description_short': 'Rebobina el tiempo especificado.',
+                'description': 'Rebobina el tiempo especificado, el tiempo puede ser dado en segundos o en formato HH:MM:SS.',
+                'permission': 'use_forward'
+            },
+            'nowplaying': {
+                'usage': 'nowplaying',
+                'aliases': ['info', 'np', 'playing'],
+                'aliases_show': ['info', 'np', 'playing'],
+                'description_short': 'Muestra información de la canción.',
+                'description': 'Muestra información de la canción actual.',
+                'permission': 'use_info'
+            },
+
+        },
+        'música secundario': {
+            'shuffle': {
+                'usage': 'shuffle',
+                'aliases': ['sf', 'random'],
+                'aliases_show': ['sf', 'random'],
+                'description_short': 'Aleatoriza la cola de canciones.',
+                'description': 'Aleatoriza el orden de las canciones en la cola.',
+                'permission': 'use_shuffle'
+            },
+            'reverse': {
+                'usage': 'reverse',
+                'description_short': 'Invierte la cola de canciones.',
+                'description': 'Invierte el orden de las canciones en la cola.',
+                'permission': 'use_reverse'
+            },
+            'playlist': {
+                'usage': 'playlist <modo> [entrada] [entrada2]',
+                'aliases': ['playlists', 'favorites', 'favourites', 'fav', 'favs'],
+                'aliases_show': ['playlists', 'favorites', 'favourites', 'fav', 'favs'],
+                'description_short': 'Gestiona las listas de reproducción personalizadas.',
+                'description': 'Gestiona las listas de reproducción personalizadas.\n'
+                               'Modos disponibles: `create` para crear una lista de nombre `entrada`, '
+                               '`names` para ver las listas creadas, `add` para añadir la `entrada2` o la canción actual a la lista, '
+                               '`addqueue` para añadir la cola actual a la lista, `remove` para borrar la canción de la lista dada por su posición `entrada2`, '
+                               '`clear` para borrar todas las canciones de la lista, `list` para ver las canciones en una lista, `play` para añadir la lista a la cola, '
+                               '`delete` para borrar la lista, `share` para conseguir un código para compartir la lista (requiere que el bot esté alojado por la misma persona), '
+                               '`sharecomp` para conseguir un código para compartir la lista (permite diferentes hosts), '
+                               '`load` para cargar el código dado por `entrada` o subiendo un archivo .txt.',
+                'permission': 'use_playlist'
+            },
+            'autodj': {
+                'usage': 'autodj [canción]',
+                'aliases': ['auto', 'autoplaylist', 'autopl', 'autoplay'],
+                'aliases_show': ['auto', 'autoplaylist', 'autopl', 'autoplay'],
+                'description_short': 'Habilita la reproducción automática.',
+                'description': 'Habilita la reproducción automática, si se da una canción la pondrá y añadirá canciones relacionadas, '
+                               'si no se añadirán canciones relacionadas a la canción actual.',
+                'permission': 'use_autodj'
+            },
+            'shazam': {
+                'usage': 'shazam [duración]',
+                'aliases': ['recognize', 'thissong', 'current', 'this', 'currentsong'],
+                'aliases_show': ['recognize', 'thissong', 'current', 'this', 'currentsong'],
+                'description_short': 'Identifica la canción actual.',
+                'description': 'Intenta reconocer la canción actual y dar información. '
+                               '`duración` es la longitud del clip a analizar.',
+                'permission': 'use_shazam'
+            },
+            'volume': {
+                'usage': 'volume <volúmen>',
+                'aliases': ['vol'],
+                'aliases_show': ['vol'],
+                'description_short': 'Cambia el volúmen.',
+                'description': 'Cambia el volúmen de la canción actual, en porcentaje (de 0.01 a 300%) o dB (de -80 a 9.54dB).',
+                'permission': 'use_volume'
+            },
+            'eq': {
+                'usage': 'eq [tipo] [volúmen]',
+                'aliases': ['equalize', 'equalizer'],
+                'aliases_show': ['equalize', 'equalizer'],
+                'description_short': 'Ecualiza la canción actual.',
+                'description': 'Ecualiza la canción actual con el tipo dado (`bass/high`) y su volúmen, de 0 a 12dB.',
+                'permission': 'use_eq'
+            },
+            'bassboost': {
+                'usage': 'bassboost',
+                'aliases': ['bass', 'low', 'lowboost'],
+                'aliases_show': ['bass', 'low', 'lowboost'],
+                'description_short': 'Amplifica los graves de la canción.',
+                'description': 'Ecualiza la canción con el modo `bass` y volúmen 5dB.',
+                'permission': 'use_eq'
+            },
+            'highboost': {
+                'usage': 'highboost',
+                'aliases': ['high'],
+                'aliases_show': ['high'],
+                'description_short': 'Amplifica los agudos de la canción.',
+                'description': 'Ecualiza la canción con el modo `high` y volúmen 8dB.',
+                'permission': 'use_eq'
+            },
+            'pitch': {
+                'usage': 'pitch [semitonos] [velocidad]',
+                'aliases': ['tone'],
+                'aliases_show': ['tone'],
+                'description_short': 'Cambia el tono.',
+                'description': 'Cambia el tono de la canción actual, la velocidad es dada como un multiplicador '
+                               '(ejemplo: 1.25 sería 1.25 veces mas rápido). Dejar vacío para revertir los efectos.',
+                'permission': 'use_pitch'
+            },
+            'nightcore': {
+                'usage': 'nightcore',
+                'aliases': ['spedup', 'speedup'],
+                'aliases_show': ['spedup', 'speedup'],
+                'description_short': 'Aumenta el tono y acelera.',
+                'description': 'Cambia el tono de la canción actual a 4 semitonos y 1.333x de velocidad.',
+                'permission': 'use_pitch'
+            },
+            'daycore': {
+                'usage': 'daycore',
+                'aliases': ['slowed', 'slow'],
+                'aliases_show': ['slowed', 'slow'],
+                'description_short': 'Baja el tono y ralentiza.',
+                'description': 'Cambia el tono de la canción actual a -2 semitonos y 0.833x de velocidad.',
+                'permission': 'use_pitch'
+            },
+            'mono': {
+                'usage': 'mono',
+                'description_short': 'Cambia el audio a mono.',
+                'description': 'Combina los canales de audio en uno (pone el audio en el "centro").',
+                'permission': 'use_change_channels'
+            },
+            'stereo': {
+                'usage': 'stereo',
+                'description_short': 'Cambia el audio a stereo.',
+                'description': 'Separa los canales de audio.',
+                'permission': 'use_change_channels'
+            },
+        },
+        'misceláneo': {
+            'lyrics': {
+                'usage': 'lyrics [canción]',
+                'aliases': ['lyric'],
+                'aliases_show': ['lyric'],
+                'description_short': 'Muestra la letra de una canción.',
+                'description': 'Muestra la letra de la canción actual, o la canción dada.',
+                'permission': 'use_lyrics'
+            },
+            'chords': {
+                'usage': 'chords [canción]',
+                'description_short': 'Muestra los acordes de una canción.',
+                'description': 'Muestra los acordes de la canción actual, o la canción dada.\n'
+                               'Añade `-t <semitonos>` para transponer los acordes.',
+                'permission': 'use_chords'
+            },
+            'songs': {
+                'usage': 'songs [número] [artista]',
+                'aliases': ['song', 'top'],
+                'aliases_show': ['song', 'top'],
+                'description_short': 'Muestra el top de canciones de un artista.',
+                'description': 'Muestra el top `número` de canciones del artista dado (10 por defecto), '
+                               'si no se da un artista, lo obtiene de la canción actual.',
+                'permission': 'use_songs'
+            },
+            'genre': {
+                'usage': 'genre [género]',
+                'aliases': ['genres', 'recomm', 'recommendation', 'recommendations'],
+                'aliases_show': ['genres', 'recomm', 'recommendation', 'recommendations'],
+                'description_short': 'Muestra canciones del género.',
+                'description': 'Muestra canciones del género dado, si no se da un género muestra todos los géneros disponibles.',
+                'permission': 'use_genre'
+            },
+            'search': {
+                'usage': 'search [plataforma] <búsqueda>',
+                'aliases': ['find'],
+                'aliases_show': ['find'],
+                'description_short': 'Busca en YouTube o Spotify.',
+                'description': 'Muestra los resultados de búsqueda en la plataforma dada (YouTube o Spotify), '
+                               'si no se da una plataforma busca en YouTube.',
+                'permission': 'use_search'
+            },
+            'download': {
+                'usage': 'download [número]',
+                'description_short': 'Da el link de descarga de la canción.',
+                'description': 'Da el link de descarga de la canción actual o la especificada por el `número`.',
+                'permission': 'use_download'
+            },
+            'steam': {
+                'usage': 'steam <nombre de usuario>',
+                'description_short': 'Muestra información del perfil de steam.',
+                'description': 'Muestra información del perfil de steam de `nombre de usuario`.',
+                'permission': 'use_steam'
+            },
+            'pfp': {
+                'usage': 'pfp',
+                'aliases': ['profile', 'avatar'],
+                'aliases_show': ['profile', 'avatar'],
+                'description_short': 'Muestra el avatar del usuario.',
+                'description': 'Muestra el avatar del usuario.',
+                'permission': 'use_avatar'
+            },
+            'level': {
+                'usage': 'level',
+                'aliases': ['lvl'],
+                'aliases_show': ['lvl'],
+                'description_short': 'Muestra tu nivel y EXP.',
+                'description': 'Muestra tu nivel y EXP.',
+                'permission': 'use_level'
+            },
+            'chatgpt': {
+                'usage': 'chatgpt <mensaje>',
+                'aliases': ['chat', 'gpt', 'ask'],
+                'aliases_show': ['chat', 'gpt', 'ask'],
+                'description_short': 'Responde tu mensaje.',
+                'description': 'Responde tu mensaje usando ChatGPT.',
+                'permission': 'use_chatgpt'
+            },
+        },
+        'configuración': {
+            'restrict': {
+                'usage': 'restrict [canal]',
+                'aliases': ['channel'],
+                'aliases_show': ['channel'],
+                'description': 'Restringe el bot a un canal.',
+                'description_short': 'Restringe todos los mensajes del bot al canal dado.\n'
+                                     'Usa `restrict` o `restrict ALL_CHANNELS` para volver al valor por defecto.',
+                'permission': 'use_restrict'
+            },
+            'add_prefix': {
+                'usage': 'add_prefix <prefijo>',
+                'aliases': ['prefix', 'set_prefix'],
+                'aliases_show': ['prefix', 'set_prefix'],
+                'description_short': 'Añade el prefijo al bot.',
+                'description': 'Añade el prefijo dado al bot en el server.',
+                'permission': 'use_add_prefix'
+            },
+            'del_prefix': {
+                'usage': 'del_prefix <prefijo>',
+                'aliases': ['remove_prefix', 'rm_prefix'],
+                'aliases_show': ['remove_prefix', 'rm_prefix'],
+                'description_short': 'Borra el prefijo del bot.',
+                'description': 'Borra el prefijo dado del bot en el server.',
+                'permission': 'use_del_prefix'
+            },
+            'lang': {
+                'usage': 'lang <idioma>',
+                'aliases': ['language', 'change_lang', 'change_language'],
+                'aliases_show': ['language', 'change_lang', 'change_language'],
+                'description_short': 'Cambia el idioma del bot.',
+                'description': 'Cambia el idioma del bot a Inglés (`en`) o Español (`es`).',
+                'permission': 'use_lang'
+            },
+            'parameter': {
+                'usage': 'parameter [nombre] [valor]',
+                'aliases': ['param', 'parameters'],
+                'aliases_show': ['param', 'parameters'],
+                'description_short': 'Gestiona los parámetros del bot.',
+                'description': 'Cambia el valor del parámetro especificado al valor dado. '
+                               'Si no se da un valor, muestra el valor actual del parámetro, y si no '
+                               'se da un parámetro muestra todos los parámetros disponibles.',
+                'permission': 'use_parameter'
+            },
+            'reload': {
+                'usage': 'reload',
+                'aliases': ['reload_params'],
+                'aliases_show': ['reload_params'],
+                'description_short': 'Recarga los parámetros.',
+                'description': 'Recarga los valores de los parámetros.',
+                'permission': 'Administrador'
+            },
+            'perms': {
+                'usage': 'perms',
+                'aliases': ['prm'],
+                'aliases_show': ['prm'],
+                'description_short': 'Muestra los permisos del bot.',
+                'description': 'Muestra los permisos del bot en el server.',
+                'permission': 'use_perms'
+            },
+            'add_perm': {
+                'usage': 'add_perm <nombre de usuario> <permiso>',
+                'aliases': ['add_perms'],
+                'aliases_show': ['add_perms'],
+                'description_short': 'Añade el permiso dado al usuario.',
+                'description': 'Añade el permiso dado al usuario.\nUsa `ALL` o `*` para seleccionar todos los usuarios/permisos.',
+                'permission': 'use_add_perms'
+            },
+            'del_perm': {
+                'usage': 'del_perm <nombre de usuario> <permiso>',
+                'aliases': ['del_perms'],
+                'aliases_show': ['del_perms'],
+                'description_short': 'Borra el permiso dado del usuario.',
+                'description': 'Borra el permiso dado del usuario.\nUsa `ALL` o `*` para seleccionar todos los usuarios.',
+                'permission': 'use_del_perms'
+            },
+            'available_perms': {
+                'usage': 'available_perms',
+                'description': 'Muestra los permisos disponibles.',
+                'description_short': 'Muestra los permisos disponibles (dados a los administradores) '
+                                     'y los permisos por defecto (dado al resto de usuarios).',
+                'permission': 'use_available_perms'
+            },
+            'restart_levels': {
+                'usage': 'restart_levels',
+                'aliases': ['rl'],
+                'aliases_show': ['rl'],
+                'description': 'Reinicia todos los niveles.',
+                'description_short': 'Reinicia la información de los niveles de todos los usuarios en el server.',
+                'permission': 'use_restart_levels'
+            },
+            'options': {
+                'usage': 'options [opción] [valor]',
+                'aliases': ['cfg', 'config', 'opt'],
+                'aliases_show': ['cfg', 'config', 'opt'],
+                'description_short': 'Gestiona la configuración del bot.',
+                'description': 'Cambia la opción dada `option` al valor `value`, si no se da una opción muestra todas '
+                               'las opciones y sus valores actuales.',
+                'permission': 'use_options'
+            },
+        }
+    }
 
 es_data = dict()
 a = vars().copy()
