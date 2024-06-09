@@ -3,8 +3,8 @@ A music bot for discord made in python, self-hosted or using cloud services.
 
 ---
 
-### Pre release: v0.9.4-pre
-`help` needs to be updated with all the commands and info, and better looking embeds.
+### Pre release: v0.9.9-pre
+`help` message updated, only needing the spanish translation. Almost ready to go!
 
 Replit project will be updated with the full release.
 
@@ -13,13 +13,14 @@ Replit project will be updated with the full release.
 - Accepts playlists.
 - Custom playlists for each server.
 - Livestreams.
-- Support for a lot of pages, including Twitch, SoundCloud, TuneIn (radio), even twitter for some reason.
+- Support for [a lot of pages](https://github.com/Coskon/coskmusicbot/blob/main/TESTED_SITES.md).
 - Spotify to youtube conversion.
 - Autoplay/Auto DJ.
 - Play from file attachments.
 - Raw audio URLs support.
 - Support for shortened links.
 - English and Spanish languages.
+- Various fonts.
 - User permissions for each command.
 - Can be used in multiple servers at the same time, meant for a few servers at most.
 - Can have and modify multiple prefixes, even non single-characters prefixes.
@@ -32,13 +33,13 @@ Replit project will be updated with the full release.
 - And more...
 
 ## Recently added
+- Changed the `help` message, finally. Now it looks better and is divided into categories.
+- Added `TESTED_SITED.md` to show which sites are tested and work. You can add to this list if you find any other site that works.
+- Added the `use_parameter` permission, which by default nobody has. The only way to add it is by going into the json files of the server, this is to avoid people inviting the bot into a server they are admins and changing the parameters. You can find the server id using external tools and your user id inside discord, with that you can find yourself in the `user_perms_(guild id).json` file and add the `use_parameter` permission.
 - Changed default font from `Normal` to `Monospace`. If you see anything weird change back to normal in the parameters or use `parameter font normal` and then `lang [en/es]`.
 - Changed youtube search function to be faster, and search age restricted videos without compromising speed.
 - Separated `forward` into `forward` and `backwards`. You can still negative time with both to do the opposite operation.
-- Added fonts, you can change fonts using `parameter font [font name]`, then running the `lang [language]` command (or restart the bot). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`.
-- Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
-- Now the bot should be able to recognize and play a few more links correctly.
-- Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
+- Added fonts, you can change fonts using `parameter font [font name]`. Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`.
 
 ## Installation Guide
 - Install [Python](https://www.python.org/downloads/).
@@ -51,7 +52,7 @@ Replit project will be updated with the full release.
     python.exe -m venv venv
     venv\Scripts\activate
     pip install -r requirements.txt
-    lang/lang.py
+    pip install --upgrade yt-dlp
     bot.py
     ```
 - **(Optional)** Run `gradio_ui.bat` to initialize the user interface to modify some options and parameters, or change them in `PARAMETERS.txt`.
@@ -137,7 +138,7 @@ A list of things that might get added:
 ### High priority
 Features that would be nice to have right now.
 - [ ] Linux/MAC support. (will be difficult to test as i don't have neither).
-- [X] ~~Better looking embeds (alongside more information).~~ Only `help` command embed left.
+- [X] ~~Better looking embeds (alongside more information).~~
 - [ ] Stop bot from pausing when selecting a song.
 - [ ] DJ Role or similar.
 
