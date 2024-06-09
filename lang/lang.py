@@ -1,10 +1,28 @@
 import json, os
-from extras import find_font, read_param
+from extras import find_font, read_param, FCHAR
 
 if os.path.exists("../"+"PARAMETERS.txt"):
     FONT = read_param(prev_path='../')['FONT'].lower()
 else:
     FONT = read_param()['FONT'].lower()
+
+
+def find_font_dict(command_info, fields):
+    def apply_transform(value):
+        return find_font(value, FONT)
+
+    def should_transform(key):
+        return key in fields
+
+    def transform_entry(entry):
+        if isinstance(entry, dict):
+            return {k: (apply_transform(v) if should_transform(k) and not isinstance(v, list) else
+                        [apply_transform(item) for item in v] if should_transform(k) and isinstance(v, list) else
+                        transform_entry(v))
+                    for k, v in entry.items()}
+        return entry
+
+    return transform_entry(command_info)
 
 
 ### ENGLISH ###
@@ -13,7 +31,6 @@ if True: # only to minimize
     entering_texts = ["Entering ", "Going into "]
     nothing_on_texts = ["Nothing is playing."]
     song_not_chosen_texts = [f"Selection timed out."]
-    not_existing_command_texts = ["Invalid command."]
     nobody_left_texts = ["Nobody left, disconnecting..."]
     invalid_use_texts = ["Invalid use (check `help` for more info)."]
     prefix_use_texts = ["To add or remove a prefix, use `add_prefix [prefix]` or `del_prefix [prefix]`."]
@@ -42,8 +59,14 @@ if True: # only to minimize
     logged_in = "Logged in as"
     command_from = "Command from"
     wait_seconds = "%name, wait `%time` seconds."
-    help_title = "ℹ️ — Help"
-    help_desc = "Command list -> command [use] (aliases) | Prefixes: %prefix:"
+    help_title = "❓ — Help%command"
+    help_desc = "Commands usage: `command <required> [optional]`\nSelect a category below to view its commands.\nPrefixes: %prefix"
+    help_word_usage = "Usage"
+    help_word_aliases = "Aliases"
+    help_word_desc = "Description"
+    help_word_perm = "Required permission"
+    not_existing_command = "Invalid command: `%command`. Use `help` to see all commands."
+    category_placeholder = "Choose a category..."
     bot_perms = "⚙️ — %botname permissions in %server"
     couldnt_find_user = "Couldn't find user `%name`."
     invalid_perm = "Permission `%perm` is not a valid permission, use `available_perms`."
@@ -169,8 +192,466 @@ if True: # only to minimize
     parameter_changed_value = "Parameter `%pname` changed to `%value`."
     parameters_title = "⚙️ — Parameters"
     parameter_value_title = "⚙️ — Parameter Value"
+    parameter_perm_added_externally = "The parameter `use_parameter` can only be added externally."
     song_queue_ended = "Song queue ended."
     timeout_footer = "Timelimit: %times"
+    CATEGORY_DESC = {
+        'general': '🌐 — General utility commands',
+        'music_main': '🎵 — Music related commands',
+        'music_secondary': '🎵 — More music related commands',
+        'miscellaneous': '🧩 — Various commands',
+        'configuration': '🛠️ — Server configuration commands',
+    }
+    COMMANDS_INFO = {
+        'general': {
+            'help': {
+                'usage': 'help [command]',
+                'aliases': ['h'],
+                'aliases_show': ['h'],
+                'description_short': 'Shows the help message.',
+                'description': 'Shows the help message or information about the given command.',
+                'permission': 'use_help'
+            },
+            'ping': {
+                'usage': 'ping',
+                'description': 'Checks the bot\'s latency.',
+                'description_short': 'Checks the bot\'s latency.',
+                'permission': 'use_ping'
+            },
+            'join': {
+                'usage': 'join',
+                'aliases': ['connect'],
+                'aliases_show': ['connect'],
+                'description_short': 'Connects the bot.',
+                'description': 'Connects the bot to the voice channel.',
+                'permission': 'use_join'
+            },
+            'leave': {
+                'usage': 'leave',
+                'aliases': ['l', 'dis', 'disconnect', 'd'],
+                'aliases_show': ['l', 'dis', 'disconnect', 'd'],
+                'description_short': 'Disconnects the bot and clears the queue.',
+                'description': 'Disconnects the bot from the voice channel and clears the queue.',
+                'permission': 'use_leave'
+            },
+        },
+        'music main': {
+            'play': {
+                'usage': 'play <query/attachment>',
+                'aliases': ['p'],
+                'aliases_show': ['p'],
+                'description_short': 'Plays the song from the query.',
+                'description': f'Plays a song, which can be an URL from [these]({FCHAR}https://github.com/Coskon/coskmusicbot/blob/main/TESTED_SITES.md{FCHAR}) sites/services or a raw audio URL, a query to search on youtube or from the file/files attached.',
+                'permission': 'use_play'
+            },
+            'fastplay': {
+                'usage': 'fastplay <query/attachment>',
+                'aliases': ['fp'],
+                'aliases_show': ['fp'],
+                'description_short': 'Plays the first result from the search.',
+                'description': 'Same as the `play` command, but skips having to select a song when a search query is given.',
+                'permission': 'use_fastplay'
+            },
+            'leave': {
+                'usage': 'leave',
+                'aliases': ['l', 'dis', 'disconnect', 'd'],
+                'aliases_show': ['l', 'dis', 'disconnect', 'd'],
+                'description_short': 'Disconnects the bot and clears the queue.',
+                'description': 'Disconnects the bot from the voice channel and clears the queue.',
+                'permission': 'use_leave'
+            },
+            'skip': {
+                'usage': 'skip',
+                'aliases': ['s', 'next'],
+                'aliases_show': ['s', 'next'],
+                'description_short': 'Skips to the next song.',
+                'description': 'Skips to the next song or, if the user has no permissions, initiates a vote skip.',
+                'permission': 'use_skip'
+            },
+            'rewind': {
+                'usage': 'rewind',
+                'aliases': ['rw', 'r', 'back'],
+                'aliases_show': ['rw', 'r', 'back'],
+                'description_short': 'Goes back to the previous song.',
+                'description': 'Goes back to the previous song.',
+                'permission': 'use_rewind'
+            },
+            'pause': {
+                'usage': 'pause',
+                'aliases': ['stop'],
+                'aliases_show': ['stop'],
+                'description_short': 'Pauses the song.',
+                'description': 'Pauses the current playing song.',
+                'permission': 'use_pause'
+            },
+            'resume': {
+                'usage': 'resume',
+                'description_short': 'Resumes the song.',
+                'description': 'Resumes the song.',
+                'permission': 'use_resume'
+            },
+            'queue': {
+                'usage': 'queue',
+                'aliases': ['q'],
+                'aliases_show': ['q'],
+                'description_short': 'Shows the song queue.',
+                'description': 'Shows the song queue, and fetches the info from the videos that are not yet loaded (use it to speed up the playing of the next songs).',
+                'permission': 'use_queue'
+            },
+            'remove': {
+                'usage': 'remove <number>',
+                'aliases': ['rm'],
+                'aliases_show': ['rm'],
+                'description_short': 'Removes the selected song.',
+                'description': 'Removes the selected song from the queue by its position.',
+                'permission': 'use_remove'
+            },
+            'goto': {
+                'usage': 'goto <number>',
+                'description_short': 'Goes to the selected song.',
+                'description': 'Goes to the selected song in the queue by its position.',
+                'permission': 'use_goto'
+            },
+            'loop': {
+                'usage': 'loop [mode]',
+                'aliases': ['lp'],
+                'aliases_show': ['lp'],
+                'description_short': 'Changes the loop mode.',
+                'description': 'Changes the loop mode: `all/queue` repeats the whole queue, `shuffle/random` randomizes the song that will play next,'
+                               ' `one` repeats the current song, `autodj` enables autoplay and `off` disables the loop.'
+                               ' If no mode is given it will switch between `all` and `off`.',
+                'permission': 'use_loop'
+            },
+            'seek': {
+                'usage': 'seek <time>',
+                'aliases': ['sk'],
+                'aliases_show': ['sk'],
+                'description_short': 'Goes to the given time.',
+                'description': 'Goes to the given time, time can be given either in seconds or in HH:MM:SS format.',
+                'permission': 'use_seek'
+            },
+            'forward': {
+                'usage': 'forward <time>',
+                'aliases': ['fw', 'forwards', 'ff'],
+                'aliases_show': ['fw', 'forwards', 'ff'],
+                'description_short': 'Fast forwards the specified time.',
+                'description': 'Fast forwards the specified time, time can be given either in seconds or in HH:MM:SS format.',
+                'permission': 'use_forward'
+            },
+            'backward': {
+                'usage': 'backward <time>',
+                'aliases': ['backwards', 'bw'],
+                'aliases_show': ['backwards', 'bw'],
+                'description_short': 'Rewinds the specified time.',
+                'description': 'Rewinds the specified time, time can be given either in seconds or in HH:MM:SS format.',
+                'permission': 'use_forward'
+            },
+            'nowplaying': {
+                'usage': 'nowplaying',
+                'aliases': ['info', 'np', 'playing'],
+                'aliases_show': ['info', 'np', 'playing'],
+                'description_short': 'Shows info about the song.',
+                'description': 'Shows info about the song currently playing.',
+                'permission': 'use_info'
+            },
+
+        },
+        'music secondary': {
+            'shuffle': {
+                'usage': 'shuffle',
+                'aliases': ['sf', 'random'],
+                'aliases_show': ['sf', 'random'],
+                'description_short': 'Randomizes the queue.',
+                'description': 'Randomizes the order of the songs in the queue.',
+                'permission': 'use_shuffle'
+            },
+            'reverse': {
+                'usage': 'reverse',
+                'description_short': 'Reverses the queue.',
+                'description': 'Reverses the order of the queue.',
+                'permission': 'use_reverse'
+            },
+            'playlist': {
+                'usage': 'playlist <mode> [query] [query2]',
+                'aliases': ['playlists', 'favorites', 'favourites', 'fav', 'favs'],
+                'aliases_show': ['playlists', 'favorites', 'favourites', 'fav', 'favs'],
+                'description_short': 'Manage custom playlists.',
+                'description': 'Manage custom playlists.\nAvailable modes: `create` to create a playlist of name `query`, '
+                               '`names` to see the created playlists, `add` to add the `query2` or the current song to the playlist, '
+                               '`addqueue` to add the current queue to the playlist, `remove` to remove a song from the playlist by its position given as `query2`, '
+                               '`clear` to remove all songs from the playlist, `list` to see the songs on a playlist, `play` to add the playlist to the queue, '
+                               '`delete` to delete the playlist, `share` to get a share code (requires bot to be hosted by the same person), `sharecomp` to get'
+                               ' a share code (allows different hosts), `load` to load a share code given as `query` or by uploading a .txt file.',
+                'permission': 'use_playlist'
+            },
+            'autodj': {
+                'usage': 'autodj [query]',
+                'aliases': ['auto', 'autoplaylist', 'autopl', 'autoplay'],
+                'aliases_show': ['auto', 'autoplaylist', 'autopl', 'autoplay'],
+                'description_short': 'Enables autoplay.',
+                'description': 'Enables autoplay, if a query is given it will play that and add related songs after, '
+                               'if not it will add songs related to the one currently playing.',
+                'permission': 'use_autodj'
+            },
+            'shazam': {
+                'usage': 'shazam [duration]',
+                'aliases': ['recognize', 'thissong', 'current', 'this', 'currentsong'],
+                'aliases_show': ['recognize', 'thissong', 'current', 'this', 'currentsong'],
+                'description_short': 'Recognizes the current song.',
+                'description': 'Tries to recognize the song currently playing and give info about it.'
+                               ' `duration` is the length of the clip to analyze.',
+                'permission': 'use_shazam'
+            },
+            'volume': {
+                'usage': 'volume <volume>',
+                'aliases': ['vol'],
+                'aliases_show': ['vol'],
+                'description_short': 'Changes the volume.',
+                'description': 'Changes the volume of the current song, in percentage (from 0.01 to 300%) or dB (from -80 to 9.54dB).',
+                'permission': 'use_volume'
+            },
+            'eq': {
+                'usage': 'eq [type] [volume]',
+                'aliases': ['equalize', 'equalizer'],
+                'aliases_show': ['equalize', 'equalizer'],
+                'description_short': 'Equalizes the song.',
+                'description': 'Equalizes the song given the type (`bass/high`) and its volume, from 0 to 12dB.',
+                'permission': 'use_eq'
+            },
+            'bassboost': {
+                'usage': 'bassboost',
+                'aliases': ['bass', 'low', 'lowboost'],
+                'aliases_show': ['bass', 'low', 'lowboost'],
+                'description_short': 'Boosts the bass in the song.',
+                'description': 'Equalizes the song in `bass` mode with volume 5dB.',
+                'permission': 'use_eq'
+            },
+            'highboost': {
+                'usage': 'highboost',
+                'aliases': ['high'],
+                'aliases_show': ['high'],
+                'description_short': 'Boosts the highs in the song.',
+                'description': 'Equalizes the song in `high` mode with volume 8dB.',
+                'permission': 'use_eq'
+            },
+            'pitch': {
+                'usage': 'pitch [semitones] [speed]',
+                'aliases': ['tone'],
+                'aliases_show': ['tone'],
+                'description_short': 'Changes the pitch.',
+                'description': 'Changes the pitch of the current song, the speed is given as a multiplier (example: 1.25 would be 1.25 times faster). '
+                               'Leave empty to revert to normal.',
+                'permission': 'use_pitch'
+            },
+            'nightcore': {
+                'usage': 'nightcore',
+                'aliases': ['spedup', 'speedup'],
+                'aliases_show': ['spedup', 'speedup'],
+                'description_short': 'Pitches and speeds up.',
+                'description': 'Changes the pitch of the song to 4 semitones and 1.333x speed.',
+                'permission': 'use_pitch'
+            },
+            'daycore': {
+                'usage': 'daycore',
+                'aliases': ['slowed', 'slow'],
+                'aliases_show': ['slowed', 'slow'],
+                'description_short': 'Pitches and speeds down.',
+                'description': 'Changes the pitch of the song to -2 semitones and 0.833x speed.',
+                'permission': 'use_pitch'
+            },
+            'mono': {
+                'usage': 'mono',
+                'description_short': 'Changes to mono.',
+                'description': 'Combines the audio channels into one (puts the audio in the "center").',
+                'permission': 'use_change_channels'
+            },
+            'stereo': {
+                'usage': 'stereo',
+                'description_short': 'Changes to stereo.',
+                'description': 'Separates the audio channels.',
+                'permission': 'use_change_channels'
+            },
+        },
+        'miscellaneous': {
+            'lyrics': {
+                'usage': 'lyrics [query]',
+                'aliases': ['lyric'],
+                'aliases_show': ['lyric'],
+                'description_short': 'Shows the lyrics of a song.',
+                'description': 'Shows the lyrics of the song currently playing, or the song given in the query.',
+                'permission': 'use_lyrics'
+            },
+            'chords': {
+                'usage': 'chords [query]',
+                'description_short': 'Shows the chords of a song.',
+                'description': 'Shows the chords of the song currently playing, or the song given in the query.\n'
+                               'Add `-t <semitones>` to the query to traspose the chords.',
+                'permission': 'use_chords'
+            },
+            'songs': {
+                'usage': 'songs [number] [artist]',
+                'aliases': ['song', 'top'],
+                'aliases_show': ['song', 'top'],
+                'description_short': 'Shows the top songs of an artist.',
+                'description': 'Shows the top `number` songs of the given artist (10 by default), '
+                               'if no artist is given it will retrieve it from the song currently playing.',
+                'permission': 'use_songs'
+            },
+            'genre': {
+                'usage': 'genre [query]',
+                'aliases': ['genres', 'recomm', 'recommendation', 'recommendations'],
+                'aliases_show': ['genres', 'recomm', 'recommendation', 'recommendations'],
+                'description_short': 'Shows songs of a genre.',
+                'description': 'Shows songs of the given genre, if no genre is given then it will show all available genres.',
+                'permission': 'use_genre'
+            },
+            'search': {
+                'usage': 'search [platform] <query>',
+                'aliases': ['find'],
+                'aliases_show': ['find'],
+                'description_short': 'Searches in YouTube or Spotify.',
+                'description': 'Shows the search results for the given query in the platform given (YouTube or Spotify), '
+                               'if no platform is given it will search on YouTube.',
+                'permission': 'use_search'
+            },
+            'download': {
+                'usage': 'download [number]',
+                'description_short': 'Gives a download link for the song.',
+                'description': 'Gives a link to download the song currently playing or the one specified by `number`.',
+                'permission': 'use_download'
+            },
+            'steam': {
+                'usage': 'steam <username>',
+                'description_short': 'Shows info of the steam profile.',
+                'description': 'Shows info of the steam profile of the given `username`.',
+                'permission': 'use_steam'
+            },
+            'pfp': {
+                'usage': 'pfp',
+                'aliases': ['profile', 'avatar'],
+                'aliases_show': ['profile', 'avatar'],
+                'description_short': 'Shows the user\'s pfp.',
+                'description': 'Shows the user\'s profile picture.',
+                'permission': 'use_avatar'
+            },
+            'level': {
+                'usage': 'level',
+                'aliases': ['lvl'],
+                'aliases_show': ['lvl'],
+                'description_short': 'Shows your level and XP.',
+                'description': 'Shows your level and XP.',
+                'permission': 'use_level'
+            },
+            'chatgpt': {
+                'usage': 'chatgpt <message>',
+                'aliases': ['chat', 'gpt', 'ask'],
+                'aliases_show': ['chat', 'gpt', 'ask'],
+                'description_short': 'Answers your message.',
+                'description': 'Answers your message using ChatGPT.',
+                'permission': 'use_chatgpt'
+            },
+        },
+        'configuration': {
+            'restrict': {
+                'usage': 'restrict [channel]',
+                'aliases': ['channel'],
+                'aliases_show': ['channel'],
+                'description': 'Restrict the bot to one channel.',
+                'description_short': 'Restricts all bot messages to be sent into the given channel.\n'
+                                     'Use `restrict` or `restrict ALL_CHANNELS` to go back to default.',
+                'permission': 'use_restrict'
+            },
+            'add_prefix': {
+                'usage': 'add_prefix <prefix>',
+                'aliases': ['prefix', 'set_prefix'],
+                'aliases_show': ['prefix', 'set_prefix'],
+                'description_short': 'Adds the prefix to the bot.',
+                'description': 'Adds the given prefix to the bot in the server.',
+                'permission': 'use_add_prefix'
+            },
+            'del_prefix': {
+                'usage': 'del_prefix <prefix>',
+                'aliases': ['remove_prefix', 'rm_prefix'],
+                'aliases_show': ['remove_prefix', 'rm_prefix'],
+                'description_short': 'Removes the prefix from the bot.',
+                'description': 'Removes the given prefix from the bot in the server.',
+                'permission': 'use_del_prefix'
+            },
+            'lang': {
+                'usage': 'lang <language>',
+                'aliases': ['language', 'change_lang', 'change_language'],
+                'aliases_show': ['language', 'change_lang', 'change_language'],
+                'description_short': 'Changes the bot\'s language.',
+                'description': 'Changes the bot\'s language to English (`en`) or Spanish (`es`).',
+                'permission': 'use_lang'
+            },
+            'parameter': {
+                'usage': 'parameter [name] [value]',
+                'aliases': ['param', 'parameters'],
+                'aliases_show': ['param', 'parameters'],
+                'description_short': 'Manage the bot\'s parameters.',
+                'description': 'Changes the value of the specified parameter to the one given. '
+                               'If no value is given, it shows the current value of the parameter, and if no '
+                               'parameter is given it shows all available parameters.',
+                'permission': 'use_parameter'
+            },
+            'reload': {
+                'usage': 'reload',
+                'aliases': ['reload_params'],
+                'aliases_show': ['reload_params'],
+                'description_short': 'Reloads the parameters.',
+                'description': 'Reloads the values of the parameters.',
+                'permission': 'Administrator'
+            },
+            'perms': {
+                'usage': 'perms',
+                'aliases': ['prm'],
+                'aliases_show': ['prm'],
+                'description_short': 'Shows the bot permissions.',
+                'description': 'Shows the bot permissions in the server.',
+                'permission': 'use_perms'
+            },
+            'add_perm': {
+                'usage': 'add_perm <username> <permission>',
+                'aliases': ['add_perms'],
+                'aliases_show': ['add_perms'],
+                'description_short': 'Adds the given permission to the user.',
+                'description': 'Adds the given permission to the user.\nUse `ALL` or `*` to select all users/permissions.',
+                'permission': 'use_add_perms'
+            },
+            'del_perm': {
+                'usage': 'del_perm <username> <permission>',
+                'aliases': ['del_perms'],
+                'aliases_show': ['del_perms'],
+                'description_short': 'Removes the given permission from the user.',
+                'description': 'Removes the given permission from the user.\nUse `ALL` or `*` to select all users.',
+                'permission': 'use_del_perms'
+            },
+            'available_perms': {
+                'usage': 'available_perms',
+                'description': 'Shows the available permissions.',
+                'description_short': 'Shows the available (given to admins) and default permissions (given to the rest of users).',
+                'permission': 'use_available_perms'
+            },
+            'restart_levels': {
+                'usage': 'restart_levels',
+                'aliases': ['rl'],
+                'aliases_show': ['rl'],
+                'description': 'Restarts all levels.',
+                'description_short': 'Restarts the level info of all users in the server.',
+                'permission': 'use_restart_levels'
+            },
+            'options': {
+                'usage': 'options [option] [value]',
+                'aliases': ['cfg', 'config', 'opt'],
+                'aliases_show': ['cfg', 'config', 'opt'],
+                'description_short': 'Manage bot configuration.',
+                'description': 'Changes the given `option` to the `value`, if no option is given it shows all available '
+                               'options and their current values.',
+                'permission': 'use_options'
+            },
+        }
+    }
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
     command_desc_play = f"➤ Use: `play [query or url] [nothing/-opt option]`\n➤ Aliases: `p`\n" \
@@ -265,8 +746,12 @@ if True: # only to minimize
 en_data = dict()
 a = vars().copy()
 for name, value in zip(a.keys(), a.values()):
-    if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
+    if isinstance(value, list) or isinstance(value, str) and not name.startswith("__") and not name == "FONT":
         en_data[name] = find_font(value, FONT) if isinstance(value, str) else [find_font(v, FONT) for v in value]
+    elif name == 'COMMANDS_INFO':
+        en_data[name] = find_font_dict(value, fields=['usage', 'aliases_show', 'description', 'description_short', 'permission'])
+    elif name == 'CATEGORY_DESC':
+        en_data[name] = find_font_dict(value, fields=list(CATEGORY_DESC.keys()))
 
 try:
     with open("lang/en.json", "w") as f:
@@ -282,7 +767,6 @@ if True: # only to minimize
     entering_texts = ["Uniéndome a ", "Entrando a "]
     nothing_on_texts = ["No está sonando nada."]
     song_not_chosen_texts = [f"La selección ha expirado."]
-    not_existing_command_texts = ["Comando inválido."]
     nobody_left_texts = ["No queda nadie, desconectando..."]
     invalid_use_texts = ["Uso inválido (usar `help` para más información)."]
     prefix_use_texts = ["Para añadir o borrar un prefijo, usar `add_prefix [prefijo]` o `del_prefix [prefijo]`."]
@@ -310,8 +794,14 @@ if True: # only to minimize
     logged_in = "Conectado como"
     command_from = "Comando de"
     wait_seconds = "%name, espere `%time` segundos."
-    help_title = "ℹ️ — Ayuda"
-    help_desc = "Lista de comandos -> comando [uso] (aliases) | Prefijos: %prefix:"
+    help_title = "❓ — Ayuda%command"
+    help_desc = "Uso de comandos: `comando <necesario> [opcional]`\nSelecciona una categoría abajo para ver sus comandos.\nPrefijos: %prefix"
+    help_word_usage = "Uso"
+    help_word_aliases = "Aliases"
+    help_word_desc = "Descripción"
+    help_word_perm = "Permiso necesario"
+    not_existing_command = "Comando inválido: `%command`. Usa `help` para ver todos los comandos."
+    category_placeholder = "Selecciona una categoría..."
     bot_perms = "⚙️ — Permisos de %botname en %server"
     couldnt_find_user = "No se pudo encontrar al usuario `%name`."
     invalid_perm = "El permiso `%perm` no es válido, usar `available_perms`."
@@ -437,6 +927,7 @@ if True: # only to minimize
     parameter_changed_value = "Parámetro `%pname` cambiado a `%value`."
     parameters_title = "⚙️ — Parámetros"
     parameter_value_title = "⚙️ — Valor del Parámetro"
+    parameter_perm_added_externally = "El parámetro `use_parameter` solo se puede agregar externamente."
     song_queue_ended = "La cola de canciones terminó."
     timeout_footer = "Límite de tiempo: %times"
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
@@ -535,8 +1026,12 @@ if True: # only to minimize
 es_data = dict()
 a = vars().copy()
 for name, value in zip(a.keys(), a.values()):
-    if isinstance(value, list) or isinstance(value, str) and not name.startswith("__"):
+    if isinstance(value, list) or isinstance(value, str) and not name.startswith("__") and not name == "FONT":
         es_data[name] = find_font(value, FONT) if isinstance(value, str) else [find_font(v, FONT) for v in value]
+    elif name == 'COMMANDS_INFO':
+        es_data[name] = find_font_dict(value, fields=['usage', 'aliases_show', 'description', 'description_short', 'permission'])
+    elif name == 'CATEGORY_DESC':
+        es_data[name] = find_font_dict(value, fields=list(CATEGORY_DESC.keys()))
 
 try:
     with open("lang/es.json", "w") as f:

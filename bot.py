@@ -450,6 +450,15 @@ def read_playlists(file_path, bot):
     return data
 
 
+def find_command_info(command_name):
+    for category, commands in COMMANDS_INFO.items():
+        for command, info in commands.items():
+            aliases = info['aliases'] if 'aliases' in info else []
+            if command == command_name or command_name in aliases:
+                return command, info
+    return None, None
+
+
 ## ASYNC FUNCTIONS ##
 async def choice(ctx, embed, reactions):
     try:
@@ -818,6 +827,35 @@ class PlaylistQueueMenu(discord.ui.View):
         return embed
 
 
+class HelpDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [discord.SelectOption(label=find_font(category.capitalize(), FONT), description=CATEGORY_DESC[category.replace("  ", "_").replace(" ", "_")]) for category in COMMANDS_INFO.keys()]
+        self.help_font = FONT
+        super().__init__(placeholder=category_placeholder, min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        category = find_font(self.values[0], FONT=self.help_font, inverse=True).lower().replace("  ", "_").replace(" ", "_")
+        embed = discord.Embed(
+            title=CATEGORY_DESC[category],
+            color=EMBED_COLOR
+        )
+        category = category.replace("_", " ")
+        for command, info in COMMANDS_INFO[category].items():
+            command_info = COMMANDS_INFO[category][command]
+            command = command.replace("_", r"\_").replace("*", r"\*")
+            if 'aliases_show' in command_info:
+                embed.add_field(name=f"{command} (`{', '.join(command_info['aliases_show'])}`)", value=info['description_short'], inline=False)
+            else:
+                embed.add_field(name=f"{command}", value=info['description_short'], inline=False)
+        await interaction.response.edit_message(embed=embed)
+
+
+class HelpView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.add_item(HelpDropdown())
+
+
 ## BOT EVENTS ##
 @bot.event
 async def on_ready():
@@ -875,7 +913,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         if not any(ctx.message.content.startswith(prefix) for prefix in EXCLUDED_CASES):
             channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-            await channel_to_send.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            await channel_to_send.send(not_existing_command, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.event
@@ -964,95 +1002,30 @@ async def vote_skip():
 
 ## BOT COMMANDS ##
 @bot.command(name='help', aliases=['h'])
-async def help(ctx, comando=None):
+async def help(ctx, *, command_name=None):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_help"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        if comando:
-            if comando in ['help', 'h']:
-                command_text = command_desc_help
-            elif comando in ['play', 'p']:
-                command_text = command_desc_play
-            elif comando in ['leave', 'l', 'dis', 'disconnect', 'd']:
-                command_text = command_desc_leave
-            elif comando in ['skip', 's', 'next']:
-                command_text = command_desc_skip
-            elif comando in ['join', 'connect']:
-                command_text = command_desc_join
-            elif comando in ['pause', 'stop']:
-                command_text = command_desc_pause
-            elif comando in ['resume']:
-                command_text = command_desc_resume
-            elif comando in ['queue', 'q']:
-                command_text = command_desc_queue
-            elif comando in ['loop', 'lp']:
-                command_text = command_desc_loop
-            elif comando in ['shuffle', 'sf', 'random']:
-                command_text = command_desc_shuffle
-            elif comando in ['np', 'info', 'nowplaying', 'playing']:
-                command_text = command_desc_info
-            elif comando in ['lyrics', 'lyric']:
-                command_text = command_desc_lyrics
-            elif comando in ['songs', 'song']:
-                command_text = command_desc_songs
-            elif comando in ['steam']:
-                command_text = command_desc_steam
-            elif comando in ['remove', 'rm']:
-                command_text = command_desc_remove
-            elif comando in ['goto']:
-                command_text = command_desc_goto
-            elif comando in ['ping']:
-                command_text = command_desc_ping
-            elif comando in ['avatar', 'pfp', 'profile']:
-                command_text = command_desc_avatar
-            elif comando in ['level', 'lvl']:
-                command_text = command_desc_level
-            elif comando in ['chatgpt', 'chat', 'gpt']:
-                command_text = command_desc_chatgpt
-            elif comando in ['seek', 'sk']:
-                command_text = command_desc_seek
-            elif comando in ['chords']:
-                command_text = command_desc_chords
-            elif comando in ['genre', 'genres', 'recomm', 'recommendation', 'recommendations']:
-                command_text = command_desc_genre
-            elif comando in ['search', 'find']:
-                command_text = command_desc_search
-            elif comando in ['rewind', 'back', 'r', 'rw']:
-                command_text = command_desc_rewind
-            elif comando in ['forward', 'fw', 'forwards', 'bw', 'backward', 'backwards']:
-                command_text = command_desc_forward
-            elif comando in ['options', 'config', 'cfg', 'opt']:
-                command_text = command_desc_options
-            elif comando in ['fastplay', 'fp']:
-                command_text = command_desc_fastplay
-            elif comando in ['perms', 'prm']:
-                command_text = command_desc_perms.replace("%bot_name", BOT_NAME)
-            elif comando in ['add_prefix', 'prefix', 'set_prefix']:
-                command_text = command_desc_add_prefix
-            elif comando in ['del_prefix', 'remove_prefix', 'rem_prefix']:
-                command_text = command_desc_del_prefix
-            elif comando in ['add_perm']:
-                command_text = command_desc_add_perm
-            elif comando in ['del_perm']:
-                command_text = command_desc_del_perm
-            elif comando in ['available_perms']:
-                command_text = command_desc_available_perms
-            elif comando in ['pitch', 'tone']:
-                command_text = command_desc_pitch
-            elif comando in ['lang', 'change_lang', 'language', 'change_language']:
-                command_text = command_desc_lang
+        if command_name:
+            command_name = command_name.lower().strip().replace(" ", "_")
+            command, command_info = find_command_info(command_name)
+            if command_info:
+                command = command.replace("_", r"\_").replace("*", r"\*")
+                embed = discord.Embed(
+                    title=help_title.replace("%command", ": " + command),
+                    color=EMBED_COLOR
+                )
+                embed.add_field(name=help_word_usage, value=command_info['usage'], inline=False)
+                if 'aliases_show' in command_info:
+                    embed.add_field(name=help_word_aliases, value=', '.join(command_info['aliases_show']), inline=False)
+                embed.add_field(name=help_word_desc, value=command_info['description'], inline=False)
+                embed.add_field(name=help_word_perm, value=command_info['permission'].replace("_", r"\_").replace("*", r"\*"), inline=False)
+                await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             else:
-                await channel_to_send.send(random.choice(not_existing_command_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-                return
-            embed = discord.Embed(
-                title=f"Command: {comando}",
-                description=command_text,
-                color=EMBED_COLOR
-            )
+                await channel_to_send.send(not_existing_command.replace("%command", command_name), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         else:
-            comandos = command_commands
             file_path = f'options_{ctx.guild.id}.json'
             create_options_file(file_path)
             try:
@@ -1065,12 +1038,11 @@ async def help(ctx, comando=None):
             if not 'custom_prefixes' in options:
                 options = write_options(options, str(ctx.guild.id), ['custom_prefixes'])
             embed = discord.Embed(
-                title=f"{help_title}",
-                description=f"{help_desc}\n{comandos}".replace("%prefix", ', '.join(
-                    ['`{}`'.format(item) for item in options['custom_prefixes']])),
+                title=help_title.replace("%command", ""),
+                description=help_desc.replace("%prefix", ', '.join(['`{}`'.format(item) for item in options['custom_prefixes']])),
                 color=EMBED_COLOR
             )
-        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            await channel_to_send.send(embed=embed, view=HelpView(), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1109,6 +1081,9 @@ async def add_perm(ctx, name, perm):
 
         server = ctx.guild
         perm = perm.lower()
+        if perm == "use_parameter":
+            await channel_to_send.send(parameter_perm_added_externally, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
         if name == "ALL" or name == "*":
             P = 1
             for member in server.members:
@@ -1342,7 +1317,7 @@ async def leave(ctx, *, tmp='', ignore=False, disconnect=True, ended_queue=False
         traceback.print_exc()
 
 
-@bot.command(name='np', aliases=['info', 'nowplaying', 'playing'])
+@bot.command(name='nowplaying', aliases=['info', 'np', 'playing'])
 async def info(ctx):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -1370,7 +1345,8 @@ async def info(ctx):
             embed = discord.Embed(
                 title=song_info_title,
                 description="",
-                color=EMBED_COLOR
+                color=EMBED_COLOR,
+                url=vid['url']
             )
             embed.add_field(name=word_title, value=titulo)
             embed.add_field(name=word_artist, value=artista)
@@ -2102,6 +2078,7 @@ async def backward(ctx, time):
     except:
         traceback.print_exc()
 
+
 @bot.command(name='forward', aliases=['fw', 'forwards', 'ff'])
 async def forward(ctx, time):
     try:
@@ -2228,7 +2205,7 @@ async def seek(ctx, time):
 
 
 @bot.command(name='loop', aliases=['lp'])
-async def loop(ctx, mode="change"):
+async def loop(ctx, *, mode="change"):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_loop"):
@@ -2244,6 +2221,7 @@ async def loop(ctx, mode="change"):
             return
         gid = str(ctx.guild.id)
         loop_mode[gid] = loop_mode.setdefault(gid, "off")
+        mode = mode.lower()
         if mode == "change": mode = "all" if loop_mode[gid] == "off" else "off"
         if mode not in {'queue', 'all', 'shuffle', 'random', 'one', 'off', 'autodj'}:
             await channel_to_send.send(not_loop_mode.replace("%mode", str(mode)),
@@ -2289,7 +2267,7 @@ async def shuffle(ctx):
 
 
 @bot.command(name='queue', aliases=['q'])
-async def cola(ctx, silent=False):
+async def cola(ctx, *, tmp='', silent=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_queue"):
@@ -2445,8 +2423,8 @@ async def goto(ctx, num):
         traceback.print_exc()
 
 
-@bot.command(name="avatar", aliases=['profile', 'pfp'])
-async def avatar(ctx):
+@bot.command(name="pfp", aliases=['profile', 'avatar'])
+async def pfp(ctx):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_avatar"):
@@ -2487,7 +2465,7 @@ async def steam(ctx, name):
         traceback.print_exc()
 
 
-@bot.command(name='chatgpt', aliases=['chat', 'gpt'])
+@bot.command(name='chatgpt', aliases=['chat', 'gpt', 'ask'])
 async def chatgpt(ctx, *, msg):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -2695,7 +2673,7 @@ async def chords(ctx, *, query=""):
         traceback.print_exc()
 
 
-@bot.command(name='nightcore', aliases=['spedup'])
+@bot.command(name='nightcore', aliases=['spedup', 'speedup'])
 async def nightcore(ctx):
     try:
         await pitch(ctx, semitones=4, speed=1+4/12, silent=True)
@@ -2703,7 +2681,7 @@ async def nightcore(ctx):
         traceback.print_exc()
 
 
-@bot.command(name='daycore', aliases=['slowed'])
+@bot.command(name='daycore', aliases=['slowed', 'slow'])
 async def daycore(ctx):
     try:
         await pitch(ctx, semitones=-2, speed=1-2/12, silent=True)
@@ -2808,7 +2786,7 @@ async def volume(ctx, volume: str):
         traceback.print_exc()
 
 
-@bot.command(name='eq', aliases=['equalizer'])
+@bot.command(name='eq', aliases=['equalize', 'equalizer'])
 async def eq(ctx, eqtype="bass", strength="5", silent=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -2960,7 +2938,7 @@ async def shazam(ctx, clip_length='15'):
         traceback.print_exc()
 
 
-@bot.command(name='auto', aliases=['autodj', 'autoplaylist', 'autopl', 'autoplay'])
+@bot.command(name='autodj', aliases=['auto', 'autoplaylist', 'autopl', 'autoplay'])
 async def autodj(ctx, *, url="", ignore=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -3061,7 +3039,7 @@ async def add_prefix(ctx, prefix):
         traceback.print_exc()
 
 
-@bot.command(name='remove_prefix', aliases=['del_prefix', 'rem_prefix'])
+@bot.command(name='del_prefix', aliases=['remove_prefix', 'rm_prefix'])
 async def del_prefix(ctx, prefix):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -3099,7 +3077,7 @@ async def del_prefix(ctx, prefix):
 
 
 @bot.command(name='lang', aliases=['language', 'change_lang', 'change_language'])
-async def lang(ctx, lng=None):
+async def lang(ctx, lng=None, silent=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
         if not check_perms(ctx, "use_lang"):
@@ -3119,7 +3097,7 @@ async def lang(ctx, lng=None):
 
         globals().update(lang_dict)
 
-        await channel_to_send.send(lang_changed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        if not silent: await channel_to_send.send(lang_changed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -3233,7 +3211,7 @@ async def reverse(ctx):
         traceback.print_exc()
 
 
-@bot.command(name='reload_params', aliases=['reload'])
+@bot.command(name='reload', aliases=['reload_params'])
 @commands.has_permissions(administrator=True)
 async def reload(ctx):
     try:
@@ -3249,11 +3227,13 @@ async def reload(ctx):
         traceback.print_exc()
 
 
-@bot.command(name='param', aliases=['parameter', 'parameters'])
-@commands.has_permissions(administrator=True)
+@bot.command(name='parameter', aliases=['param', 'parameters'])
 async def parameter(ctx, parameter=None, *, value=None):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
+        if not check_perms(ctx, "use_parameter"):
+            await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            return
         parameters = read_param()
         if len(parameters.keys()) < 32:
             input(f"\033[91m{missing_parameters}\033[0m")
@@ -3290,6 +3270,17 @@ async def parameter(ctx, parameter=None, *, value=None):
         write_param(parameters)
         parameters = read_param()
         globals().update(parameters)
+        if parameter == 'FONT':
+            config = configparser.ConfigParser()
+            try:
+                with open(config_path, "r") as f:
+                    config.read_string(f.read())
+            except:
+                config.add_section("Config")
+                config.set("Config", "lang", "en")
+                with open(config_path, "w") as f:
+                    config.write(f)
+            await lang(ctx, lng=config.get('Config', 'lang').lower(), silent=True)
         print("Parameters succesfully reloaded.")
         await channel_to_send.send(parameter_changed_value.replace("%pname", parameter).replace("%value", value), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         return

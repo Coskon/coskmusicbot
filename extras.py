@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse', 'use_playlist', 'use_change_channels']
 VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download', 'use_playlist']
 VAR_ADMIN_PERMS = VAR_AVAILABLE_PERMS.copy()
+VAR_AVAILABLE_PERMS.append('use_parameter')
+FCHAR = '𐅆'
 FONT_DICT = {
     "normal": {},
     "monospace": {' ': '  ', 'A': '𝙰', 'B': '𝙱', 'C': '𝙲', 'D': '𝙳', 'E': '𝙴', 'F': '𝙵', 'G': '𝙶', 'H': '𝙷', 'I': '𝙸', 'J': '𝙹', 'K': '𝙺', 'L': '𝙻', 'M': '𝙼', 'N': '𝙽', 'O': '𝙾', 'P': '𝙿', 'Q': '𝚀', 'R': '𝚁', 'S': '𝚂', 'T': '𝚃', 'U': '𝚄', 'V': '𝚅', 'W': '𝚆', 'X': '𝚇', 'Y': '𝚈', 'Z': '𝚉', 'a': '𝚊', 'b': '𝚋', 'c': '𝚌', 'd': '𝚍', 'e': '𝚎', 'f': '𝚏', 'g': '𝚐', 'h': '𝚑', 'i': '𝚒', 'j': '𝚓', 'k': '𝚔', 'l': '𝚕', 'm': '𝚖', 'n': '𝚗', 'o': '𝚘', 'p': '𝚙', 'q': '𝚚', 'r': '𝚛', 's': '𝚜', 't': '𝚝', 'u': '𝚞', 'v': '𝚟', 'w': '𝚠', 'x': '𝚡', 'y': '𝚢', 'z': '𝚣', '0': '𝟶', '1': '𝟷', '2': '𝟸', '3': '𝟹', '4': '𝟺', '5': '𝟻', '6': '𝟼', '7': '𝟽', '8': '𝟾', '9': '𝟿'},
@@ -19,6 +21,7 @@ FONT_DICT = {
     "fraktur": {'A': '𝔄', 'B': '𝔅', 'C': 'ℭ', 'D': '𝔇', 'E': '𝔈', 'F': '𝔉', 'G': '𝔊', 'H': 'ℌ', 'I': 'ℑ', 'J': '𝔍', 'K': '𝔎', 'L': '𝔏', 'M': '𝔐', 'N': '𝔑', 'O': '𝔒', 'P': '𝔓', 'Q': '𝔔', 'R': 'ℜ', 'S': '𝔖', 'T': '𝔗', 'U': '𝔘', 'V': '𝔙', 'W': '𝔚', 'X': '𝔛', 'Y': '𝔜', 'Z': 'ℨ', 'a': '𝔞', 'b': '𝔟', 'c': '𝔠', 'd': '𝔡', 'e': '𝔢', 'f': '𝔣', 'g': '𝔤', 'h': '𝔥', 'i': '𝔦', 'j': '𝔧', 'k': '𝔨', 'l': '𝔩', 'm': '𝔪', 'n': '𝔫', 'o': '𝔬', 'p': '𝔭', 'q': '𝔮', 'r': '𝔯', 's': '𝔰', 't': '𝔱', 'u': '𝔲', 'v': '𝔳', 'w': '𝔴', 'x': '𝔵', 'y': '𝔶', 'z': '𝔷'},
     "script": {'A': '𝒜', 'B': '𝐵', 'C': '𝒞', 'D': '𝒟', 'E': '𝐸', 'F': '𝐹', 'G': '𝒢', 'H': '𝐻', 'I': '𝐼', 'J': '𝒥', 'K': '𝒦', 'L': '𝐿', 'M': '𝑀', 'N': '𝒩', 'O': '𝒪', 'P': '𝒫', 'Q': '𝒬', 'R': '𝑅', 'S': '𝒮', 'T': '𝒯', 'U': '𝒰', 'V': '𝒱', 'W': '𝒲', 'X': '𝒳', 'Y': '𝒴', 'Z': '𝒵', 'a': '𝒶', 'b': '𝒷', 'c': '𝒸', 'd': '𝒹', 'e': '𝑒', 'f': '𝒻', 'g': '𝑔', 'h': '𝒽', 'i': '𝒾', 'j': '𝒿', 'k': '𝓀', 'l': '𝓁', 'm': '𝓂', 'n': '𝓃', 'o': '𝑜', 'p': '𝓅', 'q': '𝓆', 'r': '𝓇', 's': '𝓈', 't': '𝓉', 'u': '𝓊', 'v': '𝓋', 'w': '𝓌', 'x': '𝓍', 'y': '𝓎', 'z': '𝓏'},
 }
+
 
 def write_param(param_dict=None):
     threads = os.cpu_count() // 2
@@ -52,7 +55,7 @@ def write_param(param_dict=None):
                     f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
                     f"MAX_SEARCH_SELECT = -1  # limit of youtube searching when choosing a song\n\n"
                     f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
-                    f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
+                    f"SKIP_PRIVATE_SEARCH = False  # whether or not to skip private/age restricted videos when searching\n\n"
                     f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
                     f"QUEUE_VIDEOS_PER_PAGE = 15  # how many videos to show per page in the queue\n\n"
                     f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
@@ -207,18 +210,22 @@ def get_share_code(urls=None, gid="", playlist_name="", shortened=True):
     return playlist_name+"%PL%"+b85encode(bytes(";".join([url for url in urls]).encode())).decode()
 
 
-def find_font(text, FONT):
+def find_font(text, FONT, inverse=False):
     ret_text = ""
     if FONT not in FONT_DICT:
         FONT = 'normal'
-    font = FONT_DICT[FONT]
-    perc = False
+    font = FONT_DICT[FONT] if not inverse else {v: k for k, v in FONT_DICT[FONT].items()}
+    perc, cnt = 0, 0
     for c in text:
-        if c == '%': perc = True
-        if c in {' ', '!', ')', '(', ']', '[', '¡', '?', '¿', '.', ',', ':', ';', '`'}: perc = False
-        if c in font and not perc:
+        if c == '%': perc = 1
+        elif c == FCHAR:
+            cnt += 1
+            if cnt > 1: perc = 0
+            else: perc = 2
+        elif c in {' ', '!', ')', '(', ']', '[', '¡', '?', '¿', '.', ',', ':', ';', '`'} and perc != 2: perc = 0
+        if c in font and perc == 0:
             ret_text += font[c]
-        else:
+        elif c != FCHAR:
             ret_text += c
     return ret_text
 
@@ -255,4 +262,5 @@ def shortened_youtube_search(query, max_results=18):
         })
         i += 1
     return videos_info
+
 
