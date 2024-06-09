@@ -22,7 +22,7 @@ if True: # only to minimize
     private_channel_texts = ["I can't enter that channel."]
     cancel_selection_texts = ["Selection canceled."]
     invalid_link_texts = ["Invalid link."]
-    restricted_video_texts = ["Invalid video (private or age restricted)."]
+    restricted_video_texts = ["Invalid video."]
     rip_audio_texts = ["Audio error."]
     no_queue_texts = ["There are no songs in the queue."]
     avatar_error_texts = ["Couldn't retrieve profile picture."]
@@ -58,7 +58,7 @@ if True: # only to minimize
     available_perms_title = "⚙️ — **Available perms**"
     default_perms_title = "⚙️ — **Default perms**"
     song_info_title = "ℹ️ — **Information of the song**"
-    song_info_desc = "➤ **Title**: %title\n➤ **Artist**: %artist\n➤ **Channel**: %channel\n➤ **Duration**: `%duration`\n\n %bar"
+    word_artist = "Artist"
     config_title = "⚙️ — Configuration"
     config_desc = "➤ Options: `search_limit=%search_limit`, `recomm_limit=%recomm_limit`, `custom_prefixes=%custom_prefixes`, `restricted_to=%restricted_to`."
     config_changed = "➤ `%option` changed from `%original` to `%newvalue`"
@@ -75,8 +75,6 @@ if True: # only to minimize
     playlist_added_desc = "**%name** put **%title** in *%ch_name*!\nA total of `%pl_length` songs have been added."
     playlist_max_reached = "The playlist has `%pl_length` videos, `%over` more than the maximum. The last `%discarded` videos were discarded."
     playlist_link = "Playlist link"
-    playlist_link_desc = '%url\n\n➤ **Title**: *%title*'
-    playlist_link_desc_time = "\n➤ **Total duration**: `%duration`"
     playlist_videos_unavailable = "The playlist has `%total` videos, from which `%unavailable` are unavailable."
     video_max_duration = "Video is too long (`%video_limit` limit)."
     song_selected = "Chosen: %title"
@@ -117,7 +115,7 @@ if True: # only to minimize
     pitch_title = "🎤 - Pitch changed"
     pitch_desc = "➤ **Pitch**: %sign%tone\n➤ **Speed**: x%speed"
     volume_title = "🎚️ — Volume changed"
-    volume_desc = "➤ **Volume**: %vol"
+    volume_desc = "➤ **Volume**: %vol (%perc)"
     eq_title = "🎛️ — Equalization"
     eq_desc = "➤ **Frequency**: %freq\n➤ **Width**: %width\n➤ **Volume**: %vol"
     prefix_add_title = "⚙️ — Prefix added"
@@ -131,13 +129,13 @@ if True: # only to minimize
     searching_text = "Searching..."
     recognizing_song = "Listening..."
     shazam_title = "✅ — Song found"
-    shazam_desc = f"➤ **Title**: %title\n➤ **Artist**: %artist\n➤ **Album**: %album\n➤ **Genre%plural**: %genres\n\n%url"
+    shazam_desc = f"➤ **Title**: %title\n➤ **Artist**: %artist\n➤ **Album**: %album\n➤ **Genre%plural**: %genres"
     shazam_no_song = f"Couldn't recognize song. Try using a longer time; `shazam [duration]`."
     no_album_info_found = "No information."
     autodj_added_songs = "Added `%num` related songs to queue."
     autodj_no_song = "Couldn't retrieve information."
     cannot_change_time_live = "Cannot use `%command` on a live video."
-    couldnt_load_song = "Couldn't load song (private/age restricted): %title."
+    couldnt_load_song = "Couldn't load song: %title."
     already_on_another_vc = "I'm already on another channel."
     channel_doesnt_exist = "`%name` doesn't exist."
     restricted_to_channel = "Now i will only send messages in `%name`."
@@ -169,7 +167,10 @@ if True: # only to minimize
     invalid_parameter = "Invalid parameter, use `parameters` to see the list of available parameters."
     parameters_to_default = "Parameters reverted to default."
     parameter_changed_value = "Parameter `%pname` changed to `%value`."
+    parameters_title = "⚙️ — Parameters"
+    parameter_value_title = "⚙️ — Parameter Value"
     song_queue_ended = "Song queue ended."
+    timeout_footer = "Timelimit: %times"
     command_desc_help = f"➤ Use: `help [nothing/command]`\n➤ Aliases: `h`\n" \
                           f"➤ Description: Shows all commands, if a command is given it shows more info about it."
     command_desc_play = f"➤ Use: `play [query or url] [nothing/-opt option]`\n➤ Aliases: `p`\n" \
@@ -290,7 +291,7 @@ if True: # only to minimize
     private_channel_texts = ["No puedo entrar a ese canal."]
     cancel_selection_texts = ["Selección cancelada."]
     invalid_link_texts = ["Link no válido."]
-    restricted_video_texts = ["Video no válido (restringido por edad o privado)."]
+    restricted_video_texts = ["Video no válido."]
     rip_audio_texts = ["Error de audio."]
     no_queue_texts = ["No hay canciones en la cola."]
     avatar_error_texts = ["No se pudo obtener la foto de perfil."]
@@ -325,7 +326,7 @@ if True: # only to minimize
     available_perms_title = "⚙️ — **Permisos disponibles**"
     default_perms_title = "⚙️ — **Permisos por defecto**"
     song_info_title = "ℹ️ — **Información de la canción**"
-    song_info_desc = "➤ **Título**: %title\n➤ **Artista**: %artist\n➤ **Canal**: %channel\n➤ **Duración**: `%duration`\n\n %bar"
+    word_artist = "Artist"
     config_title = "⚙️ — Configuración"
     config_desc = "➤ Opciones: `search_limit=%search_limit`, `recomm_limit=%recomm_limit`, `custom_prefixes=%custom_prefixes`, `restricted_to=%restricted_to`."
     config_changed = "➤ `%option` cambiado de `%original` a `%newvalue`"
@@ -342,8 +343,6 @@ if True: # only to minimize
     playlist_added_desc = "¡**%name** puso **%title** en *%ch_name*!\nUn total de `%pl_length` canciones fueron añadidas."
     playlist_max_reached = "La lista de reproducción tiene `%pl_length` videos, `%over` más que el máximo. Los últimos `%discarded` videos fueron descartados."
     playlist_link = "Link de la lista de reproducción"
-    playlist_link_desc = '%url\n\n➤ **Título**: *%title*'
-    playlist_link_desc_time = "\n➤ **Duración total**: `%duration`"
     playlist_videos_unavailable = "La lista de reproducción tiene `%total` videos, de los cuales `%unavailable` no están disponibles."
     video_max_duration = "El video es muy largo (límite de `%video_limit`)."
     song_selected = "Elegido: %title"
@@ -384,7 +383,7 @@ if True: # only to minimize
     pitch_title = "🎤 - Tono cambiado"
     pitch_desc = "➤ **Tono**: %sign%tone\n➤ **Velocidad**: x%speed"
     volume_title = "🎚️ — Volúmen cambiado"
-    volume_desc = "➤ **Volúmen**: %vol"
+    volume_desc = "➤ **Volúmen**: %vol (%perc)"
     eq_title = "🎛️ — Ecualización"
     eq_desc = "➤ **Frecuencia**: %freq\n➤ **Ancho**: %width\n➤ **Volúmen**: %vol"
     prefix_add_title = "⚙️ — Prefijo añadido"
@@ -398,13 +397,13 @@ if True: # only to minimize
     searching_text = "Buscando..."
     recognizing_song = "Escuchando..."
     shazam_title = "✅ — Canción encontrada"
-    shazam_desc = f"➤ **Título**: %title\n➤ **Artista**: %artist\n➤ **Álbum**: %album\n➤ **Género%plural**: %genres\n\n%url"
+    shazam_desc = f"➤ **Título**: %title\n➤ **Artista**: %artist\n➤ **Álbum**: %album\n➤ **Género%plural**: %genres"
     shazam_no_song = f"No se pudo reconocer la canción. Prueba a usar un tiempo más largo; `shazam [duración]`."
     no_album_info_found = "Sin información."
     autodj_added_songs = "Se añadieron `%num` canciones relacionadas a la cola."
     autodj_no_song = "No se pudo obtener información."
     cannot_change_time_live = "No se puede usar `%command` en un video en vivo."
-    couldnt_load_song = "No se pudo cargar la canción (privado/restricción por edad): %title."
+    couldnt_load_song = "No se pudo cargar la canción: %title."
     already_on_another_vc = "Ya estoy en otro canal."
     channel_doesnt_exist = "`%name` no existe."
     restricted_to_channel = "Ahora solo mandaré mensajes en `%name`."
@@ -436,7 +435,10 @@ if True: # only to minimize
     invalid_parameter = "Parámetro inválido, usar `parameters` para ver la lista de parámetros disponibles."
     parameters_to_default = "Parámetros revertidos a su valor por defecto."
     parameter_changed_value = "Parámetro `%pname` cambiado a `%value`."
+    parameters_title = "⚙️ — Parámetros"
+    parameter_value_title = "⚙️ — Valor del Parámetro"
     song_queue_ended = "La cola de canciones terminó."
+    timeout_footer = "Límite de tiempo: %times"
     command_desc_help = f"➤ Uso: `help [nada/comando]`\n➤ Aliases: `h`\n" \
                           f"➤ Descripción: Muestra todos los comandos, si se especifica un comando muestra más información acerca de este."
     command_desc_play = f"➤ Uso: `play [canción o link] [nada/-opt opción]`\n➤ Aliases: `p`\n" \

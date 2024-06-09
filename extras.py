@@ -2,6 +2,7 @@ import os, re, json, ast
 import requests
 from urllib.parse import urlsplit
 from base64 import b85encode, b85decode
+from bs4 import BeautifulSoup
 
 VAR_AVAILABLE_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_loop', 'use_shuffle', 'use_info', 'use_lyrics', 'use_songs', 'use_steam', 'use_remove', 'use_goto', 'use_search', 'use_ping', 'use_avatar', 'use_level', 'use_chatgpt', 'use_seek', 'use_chords', 'use_genre', 'use_forward', 'use_options', 'use_fastplay', 'use_perms', 'use_add_prefix', 'use_del_prefix', 'use_pitch', 'use_rewind', 'use_restart_levels', 'use_add_perms', 'use_del_perms', 'use_available_perms', 'use_lang', 'use_vote_skip', 'use_volume', 'use_shazam', 'use_restrict', 'use_eq', 'use_autodj', 'use_download', 'use_reverse', 'use_playlist', 'use_change_channels']
 VAR_DEFAULT_PERMS = ['use_help', 'use_play', 'use_leave', 'use_skip', 'use_join', 'use_pause', 'use_resume', 'use_queue', 'use_rewind', 'use_loop', 'use_info', 'use_goto', 'use_level', 'use_seek', 'use_genre', 'use_forward', 'use_fastplay', 'use_vote_skip', 'use_shazam', 'use_download', 'use_playlist']
@@ -24,7 +25,7 @@ def write_param(param_dict=None):
     with open('PARAMETERS.txt', 'w') as f:
         if param_dict is None:
             f.write(f"BOT_NAME = Coskquin  # name of your bot\n\n"
-                    f"FONT = Normal  # normal, monospace, smallcaps, bubble, fullwidth, double_struck, bold, bold_italic, fraktur, script\n\n"
+                    f"FONT = monospace  # normal, monospace, smallcaps, bubble, fullwidth, double_struck, bold, bold_italic, fraktur, script\n\n"
                     f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n"
                     f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n"
                     f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n"
@@ -32,8 +33,8 @@ def write_param(param_dict=None):
                     f"REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user\n\n"
                     f"EMBED_COLOR = 0xff0000  # color for the side of the embed\n\n"
                     f"ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure\n\n"
-                    f"DEFAULT_SEARCH_LIMIT = 5  # how many videos to show using the search command by default\n\n"
-                    f"DEFAULT_RECOMMENDATION_LIMIT = 15  # how many videos to show in recommendations by default\n\n"
+                    f"DEFAULT_SEARCH_LIMIT = 10  # how many videos to show using the search command by default\n\n"
+                    f"DEFAULT_RECOMMENDATION_LIMIT = 10  # how many videos to show in recommendations by default\n\n"
                     f"LVL_PLAY_ADD = 1  # how much to add per play command called\n\n"
                     f"LVL_NEXT_XP = 25  # how much required xp added per next level\n\n"
                     f"LVL_BASE_XP = 25  # base xp required for the first level\n\n"
@@ -49,7 +50,7 @@ def write_param(param_dict=None):
                     f"USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\n"
                     f"USE_GRADIO = True  # use gradio for the user interface\n\n"
                     f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
-                    f"MAX_SEARCH_SELECT = 15  # limit of youtube searching when choosing a song\n\n"
+                    f"MAX_SEARCH_SELECT = -1  # limit of youtube searching when choosing a song\n\n"
                     f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
                     f"SKIP_PRIVATE_SEARCH = True  # whether or not to skip private/age restricted videos when searching\n\n"
                     f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
@@ -220,4 +221,38 @@ def find_font(text, FONT):
         else:
             ret_text += c
     return ret_text
+
+
+def shortened_youtube_search(query, max_results=18):
+    if max_results <= 0: max_results = 18
+    else: max_results = min(max(max_results, 1), 18)
+    url = "https://www.youtube.com/results?search_query=" + query
+    headers = {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    req = requests.get(url, headers=headers)
+    html = req.text
+
+    soup = BeautifulSoup(html, 'html.parser')
+    script_tag = soup.find('script', string=re.compile(r'var ytInitialData'))
+    if not script_tag: return None
+
+    json_text = re.search(r'var ytInitialData = ({.*?});', script_tag.string, re.DOTALL).group(1)
+    data = json.loads(json_text)
+
+    contents = data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
+    videos_info, i = [], 1
+    for content in contents:
+        if not 'videoRenderer' in content: continue
+        if i > max_results: break
+        vid_info = content['videoRenderer']
+        url, title = f"https://www.youtube.com/watch?v="+vid_info['videoId'], vid_info['title']['runs'][0]['text']
+        length = vid_info['lengthText']['simpleText']
+        thumbnail_url = vid_info['thumbnail']['thumbnails'][-1]['url']
+        videos_info.append({
+            'title': title, 'url': url, 'thumbnail_url': thumbnail_url, 'length': convert_formated(length)
+        })
+        i += 1
+    return videos_info
 

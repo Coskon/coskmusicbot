@@ -1216,15 +1216,17 @@ async def available_perms(ctx):
         if not check_perms(ctx, "use_available_perms"):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
-        embed = discord.Embed(
+        embed_aval = discord.Embed(
+            title=default_perms_title,
+            description=f"{', '.join(['`{}`'.format(item) for item in DEFAULT_USER_PERMS])}",
+            color=EMBED_COLOR
+        )
+        embed_def = discord.Embed(
             title=available_perms_title,
             description=f"{', '.join(['`{}`'.format(item) for item in AVAILABLE_PERMS])}",
             color=EMBED_COLOR
         )
-        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
-        embed.title = default_perms_title
-        embed.description = f"{', '.join(['`{}`'.format(item) for item in DEFAULT_USER_PERMS])}"
-        await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+        await channel_to_send.send(embeds=[embed_aval, embed_def], reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -1367,10 +1369,14 @@ async def info(ctx):
             if not artista or vid['type'] == 'raw_audio': artista = vid['channel'] if vid['channel'] else '???'
             embed = discord.Embed(
                 title=song_info_title,
-                description=song_info_desc.replace("%title", titulo).replace("%artist", artista).replace("%channel", vid_channel.replace("*", r"\*"))
-                    .replace("%duration", str(duracion)).replace("%bar", utilidades.get_bar(int(vid['length']), dict_current_time[gid])),
+                description="",
                 color=EMBED_COLOR
             )
+            embed.add_field(name=word_title, value=titulo)
+            embed.add_field(name=word_artist, value=artista)
+            embed.add_field(name=word_duration, value=f"`{str(duracion)}`")
+            embed.add_field(name="", value=utilidades.get_bar(int(vid['length']), dict_current_time[gid]), inline=False)
+            embed.set_footer(text=f"{vid_channel}", icon_url=vid['channel_image'])
             await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         else:
             await channel_to_send.send(random.choice(nothing_on_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1501,10 +1507,10 @@ async def search(ctx, tipo, *, query=""):
             options = write_options(options, str(ctx.guild.id), ['search_limit'])
         if tipo.lower() in ['youtube', 'yt', 'yotube'] or (tipo not in ['spotify', 'sp', 'spotipy', 'spoti', 'spoty']
                                                            and tipo not in ['youtube', 'yt', 'yotube']):
-            try:
-                results = search_youtube(query, max_results=options['search_limit'])
-            except:
-                traceback.print_exc()
+            for i in range(5):
+                results = shortened_youtube_search(query, max_results=options['search_limit'])
+                if results: break
+            if not results:
                 await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             embed.set_thumbnail(url=results[0]['thumbnail_url'])
@@ -1518,6 +1524,9 @@ async def search(ctx, tipo, *, query=""):
                 await channel_to_send.send(random.choice(no_api_key_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                 return
             results = utilidades.spotify_search(query, lim=options['search_limit'])
+            if not results:
+                await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+                return
             embed.set_thumbnail(url=results[0]['image_url'])
             for result in results:
                 name, artist, url = result['name'], result['artist'], result['url']
@@ -1638,7 +1647,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if command in ['force', 'forceplay', 'force_play', 'play']: force_play = True
             if not is_url(url):
                 search_message = await channel_to_send.send(searching_text)
-                results = search_youtube(url, max_results=MAX_SEARCH_SELECT if search else 1)
+                for i in range(5): # retry the search max 5 times
+                    results = shortened_youtube_search(url, max_results=MAX_SEARCH_SELECT if search else 1)
+                    if results: break
+                    print(f"failed search {i+1}")
                 if not results:
                     await search_message.delete()
                     await channel_to_send.send(random.choice(couldnt_complete_search_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -1651,6 +1663,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         description="",
                         color=EMBED_COLOR
                     )
+                    choice_embed.set_footer(text=timeout_footer.replace("%time", str(TIMELIMIT)))
                     emojis_reactions = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '❌']
                     emoji_to_number = {
                         '1️⃣': 1,
@@ -1690,6 +1703,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                                     description="",
                                     color=EMBED_COLOR
                                 )
+                                new_results_embed.set_footer(text=timeout_footer.replace("%time", str(TIMELIMIT)))
                                 val = 5 * (current_page - 1)
                                 left = len(results[val:val+5])
                                 new_results_embed.set_thumbnail(url=results[val]['thumbnail_url'])
@@ -1713,12 +1727,13 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         if button_choice[gid] == 5:
                             button_choice[gid] = random.randint(0, len(results[(5 * (current_page - 1)):(5 * current_page)]))
                         if button_choice[gid] == 9:
-                            links = results[(5 * (current_page - 1)):(5 * current_page)].copy()
+                            chosen_results = results[(5 * (current_page - 1)):(5 * current_page)].copy()
+                            links = [info_from_url(chosen_results[0]['url'])] + [vid['url'] for vid in chosen_results[1:]]
                             all_chosen = True
                             await channel_to_send.send(all_selected.replace("%page", str(current_page)), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                         else:
                             chosen = min(len(results[5*(current_page-1):5*current_page])+5*(current_page-1)-1, button_choice[gid]+5*(current_page-1))
-                            video_select = results[chosen]
+                            video_select = info_from_url(results[chosen]['url'])
                             if voice_client:
                                 await channel_to_send.send(song_selected.replace("%title", video_select['title']), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
                             else:
@@ -1737,8 +1752,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         else:
                             return
                 else:
+                    video_select = info_from_url(results[0]['url'])
                     await search_message.delete()
-                    video_select = results[0].copy()
             else:
                 video_select = {
                     'obj': None, 'title': None, 'channel': None, 'length': None, 'id': None, 'thumbnail_url': None,
@@ -1799,11 +1814,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                             .replace("%pl_length", str(len(links))),
                         color=EMBED_COLOR
                     )
-                    embed_playlist.add_field(
-                        name=playlist_link,
-                        value=playlist_link_desc.replace("%url", playlist.playlist_url).replace("%title", playlist.title) +
-                              playlist_link_desc_time.replace("%duration", convert_seconds(total_duration))
-                    )
+                    embed_playlist.add_field(name=playlist_link, value=playlist.playlist_url, inline=False)
+                    embed_playlist.add_field(name=word_title, value=f"*{playlist.title}*"+INV_CHAR_PADDING)
+                    embed_playlist.add_field(name=word_duration, value=f"`{convert_seconds(total_duration)}`"+2*INV_CHAR_PADDING)
+                    embed_playlist.add_field(name=word_views, value=f"`{format_views(playlist.views)}`")
             elif vtype == 'sp_track':
                 track = sp.track(vid_id)
                 links = [search_youtube(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio", max_results=1)[0]]
@@ -2460,8 +2474,8 @@ async def steam(ctx, name):
         url = f'https://steamcommunity.com/id/{name}'
         embed = discord.Embed(
             title=steam_title.replace("%name", name),
-            description=f'{url}',
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
+            url=url
         )
         imgurl = utilidades.get_steam_avatar(url)
         if not imgurl:
@@ -2547,7 +2561,7 @@ async def lyrics(ctx, *, query=None):
         traceback.print_exc()
 
 
-@bot.command(name='songs', aliases=['song'])
+@bot.command(name='songs', aliases=['song', 'top'])
 async def songs(ctx, number=None, *, artista=""):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
@@ -2668,7 +2682,6 @@ async def chords(ctx, *, query=""):
                 .replace("%traspose", "+"*int(traspose >= 0)+str(traspose)),
             color=EMBED_COLOR
         )
-        await channel_to_send.send(embed=tuning_embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         for i in range(0, len(msg), 4000):
             embed = discord.Embed(
                 title="",
@@ -2677,7 +2690,7 @@ async def chords(ctx, *, query=""):
             )
             if i == 0: embed.title = chords_title.replace("%song", cancion).replace("%artist", artista)
 
-            await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            await channel_to_send.send(embeds=[tuning_embed, embed], reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
 
@@ -2787,7 +2800,7 @@ async def volume(ctx, volume: str):
                               after=lambda e: on_song_end(ctx, e))
         embed = discord.Embed(
             title=volume_title,
-            description=volume_desc.replace("%vol", f"{vol_db:.2f}dB"),
+            description=volume_desc.replace("%vol", f"{vol_db:.2f}dB").replace("%perc", f"%{100*(10**(vol_db/20)):.2f}"),
             color=EMBED_COLOR
         )
         await channel_to_send.send(embed=embed, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
@@ -2929,8 +2942,9 @@ async def shazam(ctx, clip_length='15'):
         embed = discord.Embed(
             title=shazam_title,
             description=shazam_desc.replace("%title", recognized_song['title']).replace("%artist", recognized_song['subtitle'])
-                .replace("%url", recognized_song['url']).replace("%genres", genres).replace("%plural", "s" if plural else "").replace("%album", album_info),
-            color=EMBED_COLOR
+                .replace("%genres", genres).replace("%plural", "s" if plural else "").replace("%album", album_info),
+            color=EMBED_COLOR,
+            url=recognized_song['url']
         )
         try:
             embed.set_image(url=recognized_song['images']['coverarthq'])
@@ -3247,7 +3261,7 @@ async def parameter(ctx, parameter=None, *, value=None):
             parameters = read_param()
         if parameter is None:
             embed = discord.Embed(
-                title="",
+                title=parameters_title,
                 description=', '.join([f"`{param}`" for param in parameters]),
                 color=EMBED_COLOR
             )
@@ -3266,7 +3280,7 @@ async def parameter(ctx, parameter=None, *, value=None):
             return
         if value is None:
             embed = discord.Embed(
-                title="",
+                title=parameter_value_title,
                 description=f"{parameter} = {parameters[parameter]}",
                 color=EMBED_COLOR
             )
