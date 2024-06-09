@@ -3,10 +3,10 @@ A music bot for discord made in python, self-hosted or using cloud services.
 
 ---
 
-### Pre release: v0.9.9-pre
-`help` message updated, only needing the spanish translation. Almost ready to go!
+### Release: v1.0.0
+Finally released!
 
-Replit project will be updated with the full release.
+Replit project updated.
 
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
@@ -33,13 +33,12 @@ Replit project will be updated with the full release.
 - And more...
 
 ## Recently added
+- Added spanish translation for the `help` message.
+- Updated "current time" calculation to be more accurate, less consuming and more consistent across servers.
 - Changed the `help` message, finally. Now it looks better and is divided into categories.
 - Added `TESTED_SITED.md` to show which sites are tested and work. You can add to this list if you find any other site that works.
 - Added the `use_parameter` permission, which by default nobody has. The only way to add it is by going into the json files of the server, this is to avoid people inviting the bot into a server they are admins and changing the parameters. You can find the server id using external tools and your user id inside discord, with that you can find yourself in the `user_perms_(guild id).json` file and add the `use_parameter` permission.
-- Changed default font from `Normal` to `Monospace`. If you see anything weird change back to normal in the parameters or use `parameter font normal` and then `lang [en/es]`.
 - Changed youtube search function to be faster, and search age restricted videos without compromising speed.
-- Separated `forward` into `forward` and `backwards`. You can still negative time with both to do the opposite operation.
-- Added fonts, you can change fonts using `parameter font [font name]`. Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`.
 
 ## Installation Guide
 - Install [Python](https://www.python.org/downloads/).
@@ -80,6 +79,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 
 ## Known bugs
 - If the bot is waiting for an input (like choosing a song), the `play` command (and related) will not work until something is chosen or timeout. This might be fixable, but it's not high priority since the bot is not meant to be used in a lot of servers.
+- Current time isn't affected by the speed of the song. This will probably not be fixed soon as it is not that important.
 
 ## Command list
 You can see aliases for each command using the bot `help` command. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
@@ -138,7 +138,6 @@ A list of things that might get added:
 ### High priority
 Features that would be nice to have right now.
 - [ ] Linux/MAC support. (will be difficult to test as i don't have neither).
-- [X] ~~Better looking embeds (alongside more information).~~
 - [ ] Stop bot from pausing when selecting a song.
 - [ ] DJ Role or similar.
 
@@ -149,7 +148,6 @@ Features that are not as important, but would be nice to have.
 - [ ] Interactive buttons to play, resume, etc.
 - [ ] Certain things to be server-independant (reference messages, search limits for choosing a song, use buttons/reactions, etc).
 - [ ] Audio volume normalizer between all tracks (so that they all play at the same perceived volume) and volume normalization for individual tracks (to remove excessive dynamic range).
-- [X] ~~Modify parameters through commands.~~ Might change something in the future to avoid people abusing this. For now, remove the command from the code if needed.
 
 ### Low priority
 Features that can wait.
