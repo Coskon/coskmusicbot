@@ -3,10 +3,10 @@ A music bot for discord made in python, self-hosted or using cloud services.
 
 ---
 
-### Pre release: v0.9.3-pre
-Close to full release, only lacking a revamp on the embeds + minor fixes and additions.
+### Pre release: v0.9.4-pre
+`help` needs to be updated with all the commands and info, and better looking embeds.
 
-`help` needs to be updated with all the commands and info too.
+Replit project will be updated with the full release.
 
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
@@ -32,13 +32,12 @@ Close to full release, only lacking a revamp on the embeds + minor fixes and add
 - And more...
 
 ## Recently added
+- Changed youtube search function to be faster, and search age restricted videos without compromising speed.
 - Separated `forward` into `forward` and `backwards`. You can still negative time with both to do the opposite operation.
 - Added fonts, you can change fonts using `parameter font [font name]`, then running the "lang.py" script and running the `lang [language]` command (or restart the bot to avoid the last two steps). Available fonts: `normal`, `monospace`, `smallcaps`, `bubble`, `fullwidth`, `double_struck`, `bold`, `bold_italic`, `fraktur` and `script`. By default there is no special font (`normal` font).
 - Added `parameter` command, used to show parameters, their values and change them all within discord instead of going to the .txt file or the gradio ui (if you want only you to be able to modify them remove this command).
 - Now the bot should be able to recognize and play a few more links correctly.
 - Changed some embeds and the progress bar to look better. Still more embeds need to be changed before full release.
-- Added `mono` and `stereo` commands, as the name indicates it changes the audio to mono or stereo.
-- Added `share`, `sharecomp` and `load` modes to the `playlist` command: Now you can share custom playlists between servers, to get a share code you use `playlist share [playlist name]` or `playlist sharecomp [playlist name]`, and load it using `playlist load [code]`, the difference between `share` and `sharecomp` is that the first method requires both servers to have the bot hosted by the same person because it grabs the data directly from the .json files, the second method gives a base85 encoded version of each url so it should be always compatible (or, if all urls are youtube videos, it gives a string with all video ids concatenated), however the length of the code is very long in this case, luckily you can just download the .txt file it provides and attach it when loading the playlist instead of writing the share code in the command.
 
 ## Installation Guide
 - Install [Python](https://www.python.org/downloads/).
@@ -78,7 +77,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 - User interface creates a separate venv occupying more space. Might change in the future.
 
 ## Known bugs
-- If the bot is waiting for an input (like choosing a song), the bot will stop responding in every server until something is chosen or timeout. This might be fixable, but it's not high priority since the bot is not meant to be used in a lot of servers.
+- If the bot is waiting for an input (like choosing a song), the `play` command (and related) will not work until something is chosen or timeout. This might be fixable, but it's not high priority since the bot is not meant to be used in a lot of servers.
 
 ## Command list
 You can see aliases for each command using the bot `help` command. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
@@ -137,8 +136,7 @@ A list of things that might get added:
 ### High priority
 Features that would be nice to have right now.
 - [ ] Linux/MAC support. (will be difficult to test as i don't have neither).
-- [ ] Better looking embeds (alongside more information).
-- [X] ~~Favorites (basically "custom playlists" for each server, so that they can easily be called with a single command and not have to add each video or make a yt playlist).~~
+- [X] ~~Better looking embeds (alongside more information).~~ Only `help` command embed left.
 - [ ] Stop bot from pausing when selecting a song.
 - [ ] DJ Role or similar.
 
@@ -153,7 +151,6 @@ Features that are not as important, but would be nice to have.
 
 ### Low priority
 Features that can wait.
-- [ ] Improve the user interface to modify parameters.
 - [ ] More info to the `steam` command.
 - [ ] More in-depth equalization.
 - [ ] Improved readme with more detail on each commands, all aliases, etc.
