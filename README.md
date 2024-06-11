@@ -80,6 +80,7 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Known bugs
 - If the bot is waiting for an input (like choosing a song), the `play` command (and related) will not work until something is chosen or timeout. This might be fixable, but it's not high priority since the bot is not meant to be used in a lot of servers.
 - Current time isn't affected by the speed of the song. This will probably not be fixed soon as it is not that important.
+- Attached files will eventually not work (for example if you have them in a playlist), i guess it's because of how discord manages them and not really an issue with the bot itself.
 
 ## Command list
 You can see aliases for each command using the bot `help` command. If you want to change the name or aliases of a command, search for the command in `bot.py` and replace `name=` and/or `aliases=` with the name/aliases you want.
