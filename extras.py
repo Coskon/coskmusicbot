@@ -46,7 +46,7 @@ def write_param(param_dict=None):
                     f"USE_LOGIN = False\n\n"
                     f"DOWNLOAD_PATH = downloads/  # download output folder\n\n"
                     f"DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\n"
-                    f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-']  # list of cases to exclude from being recognized as commands\n\n"
+                    f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-', '...']  # list of cases to exclude from being recognized as commands\n\n"
                     f"AVAILABLE_PERMS = {VAR_AVAILABLE_PERMS}  # all permissions available\n\n"
                     f"DEFAULT_USER_PERMS = {VAR_DEFAULT_PERMS}  # permissions each user gets by default\n\n"
                     f"ADMIN_PERMS = {VAR_ADMIN_PERMS}  # permissions admin users get by default\n\n"
@@ -255,12 +255,14 @@ def shortened_youtube_search(query, max_results=18):
         if i > max_results: break
         vid_info = content['videoRenderer']
         url, title = f"https://www.youtube.com/watch?v="+vid_info['videoId'], vid_info['title']['runs'][0]['text']
-        length = vid_info['lengthText']['simpleText']
+        if 'lengthText' in vid_info:
+            length = vid_info['lengthText']['simpleText']
+        else:
+            length = '0:00'
         thumbnail_url = vid_info['thumbnail']['thumbnails'][-1]['url']
         videos_info.append({
             'title': title, 'url': url, 'thumbnail_url': thumbnail_url, 'length': convert_formated(length)
         })
         i += 1
     return videos_info
-
 

@@ -942,7 +942,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         if not any(ctx.message.content.startswith(prefix) for prefix in EXCLUDED_CASES):
             channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-            await channel_to_send.send(not_existing_command, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            await channel_to_send.send(not_existing_command.replace("%command", ctx.message.content.split(" ")[0].replace("DEF_PREFIX", "")), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.event
@@ -3526,6 +3526,11 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
                                        reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
     except:
         traceback.print_exc()
+
+
+if os.path.exists('extra_commands.py'):
+    import extra_commands
+    extra_commands.add_commands(bot, {})
 
 
 bot.run(DISCORD_APP_KEY)
