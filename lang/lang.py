@@ -1,5 +1,11 @@
-import json, os
-from extras import find_font, read_param, FCHAR
+import json
+import sys
+import os
+try:
+    from extras import find_font, read_param, FCHAR
+except:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from extras import find_font, read_param, FCHAR
 
 if os.path.exists("../"+"PARAMETERS.txt"):
     FONT = read_param(prev_path='../')['FONT'].lower()

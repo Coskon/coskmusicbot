@@ -858,12 +858,12 @@ class PlaylistQueueMenu(discord.ui.View):
 
 class HelpDropdown(discord.ui.Select):
     def __init__(self):
-        options = [discord.SelectOption(label=find_font(category.capitalize(), FONT), description=CATEGORY_DESC[category.replace("  ", "_").replace(" ", "_")]) for category in COMMANDS_INFO.keys()]
+        options = [discord.SelectOption(label=find_font(category.capitalize(), FONT), description=CATEGORY_DESC[category.replace("\u2002", "_").replace(" ", "_")]) for category in COMMANDS_INFO.keys()]
         self.help_font = FONT
         super().__init__(placeholder=category_placeholder, min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        category = find_font(self.values[0], FONT=self.help_font, inverse=True).lower().replace("  ", "_").replace(" ", "_")
+        category = find_font(self.values[0], FONT=self.help_font, inverse=True).lower().replace("\u2002", "_").replace(" ", "_")
         embed = discord.Embed(
             title=CATEGORY_DESC[category],
             color=EMBED_COLOR
@@ -940,9 +940,10 @@ async def on_message(message):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        if not any(ctx.message.content.startswith(prefix) for prefix in EXCLUDED_CASES):
+        command_called = ctx.message.content.split(" ")[0].replace("DEF_PREFIX", "")
+        if not any(command_called.startswith(prefix) for prefix in EXCLUDED_CASES):
             channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-            await channel_to_send.send(not_existing_command.replace("%command", ctx.message.content.split(" ")[0].replace("DEF_PREFIX", "")), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
+            await channel_to_send.send(not_existing_command.replace("%command", command_called), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
 
 
 @bot.event
@@ -3269,7 +3270,7 @@ async def reload(ctx):
             parameters = read_param()
 
         globals().update(parameters)
-        print("Parameters succesfully reloaded.")
+        print("Parameters successfully reloaded.")
     except:
         traceback.print_exc()
 
