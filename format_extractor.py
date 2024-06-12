@@ -8,7 +8,8 @@ YDL_OPTS = {
     'skip_download': True,
     'ignoreerrors': True,
     'noplaylist': True,
-    'extract_flat': True
+    'extract_flat': True,
+    'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
 }
 
 YOUR_URL = "YOUR_URL_HERE"
