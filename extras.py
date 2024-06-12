@@ -81,7 +81,7 @@ def read_param(prev_path=""):
 
 def is_raw_data_url(url):
     try:
-        response = requests.head(url, allow_redirects=True)
+        response = requests.head(url)
         content_type = response.headers.get('Content-Type', '').lower()
         mime_types = {
             'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/m4a'
@@ -108,18 +108,18 @@ def check_link_type(url, checked=False):
         link_type, id = "video", yt_vid_match.group(1)
     elif sp_track_match:
         if sp_track_match.group(1) == 'artist': return link_type, id
-        return f"sp_{sp_track_match.group(1)}", sp_track_match.group(2)
+        return f"sp_{sp_track_match.group(1)}", sp_track_match.group(2), url
     elif sp_code_match:
-        return "sp_"+sp_code_match.group(2), sp_code_match.group(3)
+        return "sp_"+sp_code_match.group(2), sp_code_match.group(3), url
     elif is_raw_data_url(url):
-        return "raw_audio", None
+        return "raw_audio", None, url
     elif not checked:
         try:
             full_url = requests.get(url).url
             return check_link_type(full_url, checked=True)
         except requests.exceptions.RequestException as e:
             pass
-    return link_type, id
+    return link_type, id, url
 
 
 def convert_seconds(seconds):
@@ -180,9 +180,32 @@ def find_file(folder_path, file_name):
     return None
 
 
-def format_title(title):
-    new_title = re.sub(r'[^a-zA-Z0-9 ]', '', title)
-    return new_title.replace(" ", "_") if new_title != '' else 'NoTitle'
+def cut_str_length(title, length=100):
+    return title[:length] + "..."*(len(title) >= length)
+
+
+def extract_site_from_url(url):
+    match = re.match(r'(?:https?://)?(?:[a-zA-Z0-9-]+\.)?([^./]+)\.', url)
+    return match.group(1) if match else None
+
+
+def get_account_data(url):
+    site = extract_site_from_url(url)
+    if site is None:
+        print(f"Couldn't detect service of {url}.")
+        return {'username': None, 'password': None}
+    site = site.lower()
+    print("Detected service:", site)
+    login_data_path = r'./LOGIN_DATA.json'
+    if not os.path.exists(login_data_path):
+        with open(login_data_path, 'w') as f:
+            json.dump({'example_service': {'username': 'YOUR USERNAME/EMAIL', 'password': 'YOUR PASSWORD'}}, f)
+    with open(login_data_path, 'r') as f:
+        login_data = json.load(f)
+        if site not in login_data:
+            return {'username': None, 'password': None}
+        site_login_data = login_data[site]
+    return {'username': site_login_data['username'], 'password': site_login_data['password']}
 
 
 def format_views(views: str | int):

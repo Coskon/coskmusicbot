@@ -107,11 +107,11 @@ YDL_OPTS = {
     'ignoreerrors': True,
     'noplaylist': True,
     'extract_flat': True,
-    'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None
+    'cookiefile': './cookies.txt' if os.path.exists('./cookies.txt') else None,
 }
 PREFERRED_FORMATS = {'http', 'mp4', 'Audio_Only', '1'}
-EXTRA_FORMATS = {'160p', '360p', '480p', '720p60', '1080p60', '0', '2', 'hls_mp3_128', 'http_mp3_128',
-                 'hls_opus_64', 'hls'}
+EXTRA_FORMATS = {'160p', '360p', '480p', '720p60', '1080p60', '0', '2', 'hls_mp3_128', 'http_mp3_128', 'hls_opus_64',
+                 'hls', 'f5-a1-x3', 'f3-a1-x3', 'f1-a1-x3', 'f4-v1-x3', 'f5-v1-x3', 'f3-v1-x3', 'f2-v1-x3', 'f1-v1-x3'}
 
 ## NORMAL FUNCTIONS ##
 def get_sp_id(url):
@@ -318,7 +318,7 @@ def fetch_info(result):
     except:
         channels = 2
     return {
-        'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
+        'obj': result, 'title': cut_str_length(result.title), 'channel': cut_str_length(result.author), 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
         'channel_image': get_channel_picture(result.channel_url), 'audio_options':
@@ -355,6 +355,11 @@ def info_from_url(query, is_url=True, not_youtube=False):
             vtype = 'live'
         except: # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
             try:
+                account = get_account_data(url)
+                YDL_OPTS.update({
+                    'username': account['username'],
+                    'password': account['password']
+                })
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(url, download=False)
                     stream_url = None
@@ -389,9 +394,9 @@ def info_from_url(query, is_url=True, not_youtube=False):
         except: thumb = None
         try: dur = info['duration']
         except: dur = 0
-        try: title = info['title']
+        try: title = cut_str_length(info['title'])
         except: title = 'Some audio'
-        try: channel = info['uploader']
+        try: channel = cut_str_length(info['uploader'])
         except: channel = 'Someone'
         try: views = info['view_count']
         except: views = 'A lot, probably'
@@ -411,7 +416,7 @@ def info_from_url(query, is_url=True, not_youtube=False):
     except:
         channels = 2
     return {
-        'obj': result, 'title': result.title, 'channel': result.author, 'views': result.views,
+        'obj': result, 'title': cut_str_length(result.title), 'channel': cut_str_length(result.author), 'views': result.views,
         'length': int(result.length), 'id': result.video_id, 'thumbnail_url': result.thumbnail_url,
         'url': result.watch_url, 'stream_url': stream_url, 'channel_url': result.channel_url, 'type': vtype,
         'channel_image': get_channel_picture(result.channel_url), 'audio_options':
@@ -1770,7 +1775,8 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         end = False
 
         if not all_chosen:
-            vtype, vid_id = check_link_type(video_select['url'])
+            vtype, vid_id, full_url = check_link_type(video_select['url'])
+            video_select['url'] = full_url  # for shortened urls
             not_loaded_list = []
             failed_check = False
 
@@ -1902,7 +1908,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                 if isinstance(url, dict):
                     links = [url]
                 else:
-                    links = [info_from_url(url)]
+                    links = [info_from_url(video_select['url'])]
             if vtype in {'video', 'live'}:
                 if not isinstance(url, dict) and not video_select['stream_url']:
                     links = [info_from_url(video_select['url'])]
@@ -1916,6 +1922,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             if end: return
         else:
             vtype = 'video'
+
         try: vid = links[0].copy()
         except: vid = links[0]
         if vid['length'] > MAX_VIDEO_LENGTH:
@@ -1925,6 +1932,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             return
         titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
         if vid['type'] == 'live': duracion = 'LIVE'
+        vid['url'] = url if isinstance(url, str) else vid['url']
 
         embed = discord.Embed(
             title="",
@@ -1948,6 +1956,10 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         embed2.add_field(name=word_duration, value=f"`{duracion}`"+2*INV_CHAR_PADDING)
         embed2.add_field(name=word_views, value=f"`{format_views(vid['views'])}`")
         embed2.set_footer(text=f"{vid['channel']}", icon_url=vid['channel_image'])
+
+        if embed.__len__() > 1024 or embed2.__len__() > 1024:
+            silent = True
+            await channel_to_send.send(embed_too_large, reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
         img = None
         if gif and TENOR_API_KEY: img = search_gif(titulo, TENOR_API_KEY)
         if not img: img = vid['thumbnail_url']
@@ -1957,6 +1969,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
         else:
             embed.set_thumbnail(url=img)
             embed2.set_thumbnail(url=img)
+
         if not vid['stream_url']:
             await channel_to_send.send(content=random.choice(rip_audio_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
@@ -3531,7 +3544,7 @@ async def playlist(ctx, mode, playlist_name="", *, query=""):
 
 if os.path.exists('extra_commands.py'):
     import extra_commands
-    extra_commands.add_commands(bot, {})
+    extra_commands.add_commands(bot, {'EMBED_COLOR': EMBED_COLOR, 'logged_in': logged_in})
 
 
 bot.run(DISCORD_APP_KEY)
