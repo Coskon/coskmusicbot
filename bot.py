@@ -45,7 +45,7 @@ globals().update(lang_dict)
 
 ## PARAMETER VARIABLES ##
 parameters = read_param()
-if len(parameters.keys()) < 32:
+if len(parameters.keys()) < ALL_PARAM_COUNT:
     input(f"\033[91m{missing_parameters}\033[0m")
     write_param()
     parameters = read_param()
@@ -147,8 +147,11 @@ def get_audio_channels(stream_url):
         '-of', 'default=noprint_wrappers=1:nokey=1',
         stream_url
     ]
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return int(result.stdout.strip())
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1.5)
+        return int(result.stdout.strip())
+    except subprocess.TimeoutExpired:
+        return 2
 
 
 def get_updated_options(vid, curr_time, get_options_only=False):
@@ -278,13 +281,13 @@ def get_stream_url(stream_info: dict, itags: list):
 def fetch_info(result):
     vtype = 'video'
     try:
-        streaming_data = result.vid_info['streamingData']
+        streaming_data = result.streaming_data
         stream_url = get_stream_url(streaming_data['formats'], itags=ITAGS_LIST)  # get best stream url if possible
         if not stream_url:
             stream_url = get_stream_url(streaming_data['adaptiveFormats'], itags=ITAGS_LIST)  # get best stream url if possible
     except:
         try:
-            streaming_data = result.vid_info['streamingData']
+            streaming_data = result.streaming_data
             stream_url = streaming_data['hlsManifestUrl']
             vtype = 'live'
         except:  # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
@@ -337,20 +340,20 @@ def search_youtube(query, max_results=18):
 def info_from_url(query, is_url=True, not_youtube=False):
     url = query if is_url else f"https://www.youtube.com/watch?v={query}"
     try:
-        result = YouTube(url, use_oauth=USE_LOGIN, allow_oauth_cache=True)
+        result = YouTube(url)
         if result.vid_info['playabilityStatus']['status'] == 'ERROR':
             raise Exception
     except:
         not_youtube = True
     vtype = 'video'
     try:
-        streaming_data = result.vid_info['streamingData']
+        streaming_data = result.streaming_data
         stream_url = get_stream_url(streaming_data['formats'], itags=ITAGS_LIST)  # get best stream url if possible
         if not stream_url:
             stream_url = get_stream_url(streaming_data['adaptiveFormats'], itags=ITAGS_LIST)  # get best stream url if possible
     except:
         try:
-            streaming_data = result.vid_info['streamingData']
+            streaming_data = result.streaming_data
             stream_url = streaming_data['hlsManifestUrl']
             vtype = 'live'
         except: # ABSOLUTE LAST RESORT, THE MYTH THE LEGEND YT-DLP
@@ -1838,7 +1841,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                     videos = Search(f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
                     video = videos[0]
                     try:
-                        streaming_data = video.vid_info['streamingData']
+                        streaming_data = video.streaming_data
                         stream_url = get_stream_url(streaming_data['adaptiveFormats'],
                                                     itags=ITAGS_LIST)  # get best stream url if possible
                         if not stream_url:
@@ -1875,7 +1878,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
                         f"+{track['name']}, {' '.join([artist['name'] for artist in track['artists']])} audio").results
                     video = videos[0]
                     try:
-                        streaming_data = video.vid_info['streamingData']
+                        streaming_data = video.streaming_data
                         stream_url = get_stream_url(streaming_data['adaptiveFormats'],
                                                     itags=ITAGS_LIST)  # get best stream url if possible
                         if not stream_url:
@@ -1932,7 +1935,7 @@ async def play(ctx, *, url="", append=True, gif=False, search=True, force_play=F
             return
         titulo, duracion = vid['title'], convert_seconds(int(vid['length']))
         if vid['type'] == 'live': duracion = 'LIVE'
-        vid['url'] = url if isinstance(url, str) else vid['url']
+        vid['url'] = url if isinstance(url, str) and is_url(url) else vid['url']
 
         embed = discord.Embed(
             title="",
@@ -3277,7 +3280,7 @@ async def reverse(ctx):
 async def reload(ctx):
     try:
         parameters = read_param()
-        if len(parameters.keys()) < 32:
+        if len(parameters.keys()) < ALL_PARAM_COUNT:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()
@@ -3296,7 +3299,7 @@ async def parameter(ctx, parameter=None, *, value=None):
             await channel_to_send.send(random.choice(insuff_perms_texts), reference=ctx.message if REFERENCE_MESSAGES and CAN_REPLY else None)
             return
         parameters = read_param()
-        if len(parameters.keys()) < 32:
+        if len(parameters.keys()) < ALL_PARAM_COUNT:
             input(f"\033[91m{missing_parameters}\033[0m")
             write_param()
             parameters = read_param()

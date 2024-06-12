@@ -21,44 +21,49 @@ FONT_DICT = {
     "fraktur": {'A': '𝔄', 'B': '𝔅', 'C': 'ℭ', 'D': '𝔇', 'E': '𝔈', 'F': '𝔉', 'G': '𝔊', 'H': 'ℌ', 'I': 'ℑ', 'J': '𝔍', 'K': '𝔎', 'L': '𝔏', 'M': '𝔐', 'N': '𝔑', 'O': '𝔒', 'P': '𝔓', 'Q': '𝔔', 'R': 'ℜ', 'S': '𝔖', 'T': '𝔗', 'U': '𝔘', 'V': '𝔙', 'W': '𝔚', 'X': '𝔛', 'Y': '𝔜', 'Z': 'ℨ', 'a': '𝔞', 'b': '𝔟', 'c': '𝔠', 'd': '𝔡', 'e': '𝔢', 'f': '𝔣', 'g': '𝔤', 'h': '𝔥', 'i': '𝔦', 'j': '𝔧', 'k': '𝔨', 'l': '𝔩', 'm': '𝔪', 'n': '𝔫', 'o': '𝔬', 'p': '𝔭', 'q': '𝔮', 'r': '𝔯', 's': '𝔰', 't': '𝔱', 'u': '𝔲', 'v': '𝔳', 'w': '𝔴', 'x': '𝔵', 'y': '𝔶', 'z': '𝔷'},
     "script": {'A': '𝒜', 'B': '𝐵', 'C': '𝒞', 'D': '𝒟', 'E': '𝐸', 'F': '𝐹', 'G': '𝒢', 'H': '𝐻', 'I': '𝐼', 'J': '𝒥', 'K': '𝒦', 'L': '𝐿', 'M': '𝑀', 'N': '𝒩', 'O': '𝒪', 'P': '𝒫', 'Q': '𝒬', 'R': '𝑅', 'S': '𝒮', 'T': '𝒯', 'U': '𝒰', 'V': '𝒱', 'W': '𝒲', 'X': '𝒳', 'Y': '𝒴', 'Z': '𝒵', 'a': '𝒶', 'b': '𝒷', 'c': '𝒸', 'd': '𝒹', 'e': '𝑒', 'f': '𝒻', 'g': '𝑔', 'h': '𝒽', 'i': '𝒾', 'j': '𝒿', 'k': '𝓀', 'l': '𝓁', 'm': '𝓂', 'n': '𝓃', 'o': '𝑜', 'p': '𝓅', 'q': '𝓆', 'r': '𝓇', 's': '𝓈', 't': '𝓉', 'u': '𝓊', 'v': '𝓋', 'w': '𝓌', 'x': '𝓍', 'y': '𝓎', 'z': '𝓏'},
 }
+try:
+    threads = os.cpu_count() // 2
+except:
+    threads = 4
+DEFAULT_PARAMETERS= f"BOT_NAME = Coskquin  # name of your bot\n\n" \
+                    f"FONT = monospace  # normal, monospace, smallcaps, bubble, fullwidth, double_struck, bold, bold_italic, fraktur, script\n\n" \
+                    f"EMBED_COLOR = 0xff0000  # color for the side of the embed\n\n" \
+                    f"DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\n" \
+                    f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-', '...', ':(', '..', '.-', '_.', '-.', ')', '(']  # list of cases to exclude from being recognized as commands\n\n" \
+                    f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n" \
+                    f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end\n\n" \
+                    f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n" \
+                    f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n" \
+                    f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n" \
+                    f"TIMELIMIT = 40  # (in seconds) timelimit for the popup of the search choice embed\n\n" \
+                    f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n" \
+                    f"SKIP_PRIVATE_SEARCH = False  # whether or not to skip private/age restricted videos when searching\n\n" \
+                    f"QUEUE_VIDEOS_PER_PAGE = 15  # how many videos to show per page in the queue\n\n" \
+                    f"LVL_PLAY_ADD = 1  # how much to add per play command called\n\n" \
+                    f"LVL_NEXT_XP = 25  # how much required xp added per next level\n\n" \
+                    f"LVL_BASE_XP = 25  # base xp required for the first level\n\n" \
+                    f"REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user\n\n" \
+                    f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n" \
+                    f"MAX_SEARCH_SELECT = -1  # limit of youtube searching when choosing a song\n\n" \
+                    f"DEFAULT_SEARCH_LIMIT = 10  # how many videos to show using the search command by default\n\n" \
+                    f"DEFAULT_RECOMMENDATION_LIMIT = 10  # how many videos to show in recommendations by default\n\n" \
+                    f"NUM_THREADS_HIGH = {threads if threads > 0 else 1}  # number of threads to use for tasks that need high performance\n\n" \
+                    f"NUM_THREADS_LOW = {threads // 2 if threads // 2 > 0 else 1}  # number of threads to use for tasks that don't need as much performance\n\n" \
+                    f"DOWNLOAD_PATH = downloads/  # download output folder\n\n" \
+                    f"AVAILABLE_PERMS = {VAR_AVAILABLE_PERMS}  # all permissions available\n\n" \
+                    f"DEFAULT_USER_PERMS = {VAR_DEFAULT_PERMS}  # permissions each user gets by default\n\n" \
+                    f"ADMIN_PERMS = {VAR_ADMIN_PERMS}  # permissions admin users get by default\n\n" \
+                    f"USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\n" \
+                    f"USE_GRADIO = True  # use gradio for the user interface\n\n" \
+                    f"ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure\n\n"
+
+ALL_PARAM_COUNT = len([line for line in DEFAULT_PARAMETERS.split('\n') if line.strip() != ''])
 
 
 def write_param(param_dict=None):
-    threads = os.cpu_count() // 2
     with open('PARAMETERS.txt', 'w') as f:
         if param_dict is None:
-            f.write(f"BOT_NAME = Coskquin  # name of your bot\n\n"
-                    f"FONT = monospace  # normal, monospace, smallcaps, bubble, fullwidth, double_struck, bold, bold_italic, fraktur, script\n\n"
-                    f"MAX_VIDEO_LENGTH = 216000  # in seconds\n\n"
-                    f"PLAYLIST_MAX_LIMIT = 1000  # max videos on playlist\n\n"
-                    f"SPOTIFY_LIMIT = 200  # max videos for a spotify playlist/album\n\n"
-                    f"TIMELIMIT = 40  # (in seconds) timelimit for the popup of the search choice embed\n\n"
-                    f"REQUEST_LIMIT = 1.25  # (in seconds) time should pass between command calls from each user\n\n"
-                    f"EMBED_COLOR = 0xff0000  # color for the side of the embed\n\n"
-                    f"ITAGS_LIST = [22, 151, 132, 17, 36, 92, 5, 139, 140, 141, 249, 250, 251, 18]  # list of itags allowed, dont touch if not sure\n\n"
-                    f"DEFAULT_SEARCH_LIMIT = 10  # how many videos to show using the search command by default\n\n"
-                    f"DEFAULT_RECOMMENDATION_LIMIT = 10  # how many videos to show in recommendations by default\n\n"
-                    f"LVL_PLAY_ADD = 1  # how much to add per play command called\n\n"
-                    f"LVL_NEXT_XP = 25  # how much required xp added per next level\n\n"
-                    f"LVL_BASE_XP = 25  # base xp required for the first level\n\n"
-                    f"NUM_THREADS_HIGH = {threads if threads > 0 else 1}  # number of threads to use for tasks that need high performance\n\n"
-                    f"NUM_THREADS_LOW = {threads // 2 if threads // 2 > 0 else 1}  # number of threads to use for tasks that don't need as much performance\n\n"
-                    f"USE_LOGIN = False\n\n"
-                    f"DOWNLOAD_PATH = downloads/  # download output folder\n\n"
-                    f"DEFAULT_PREFIXES = ['.', '+', ',']  # prefixes to use by default\n\n"
-                    f"EXCLUDED_CASES = ['._.', '.-.', ':)', '-.-', '...', ':(', '..', '.-', '_.', '-.', ')', '(']  # list of cases to exclude from being recognized as commands\n\n"
-                    f"AVAILABLE_PERMS = {VAR_AVAILABLE_PERMS}  # all permissions available\n\n"
-                    f"DEFAULT_USER_PERMS = {VAR_DEFAULT_PERMS}  # permissions each user gets by default\n\n"
-                    f"ADMIN_PERMS = {VAR_ADMIN_PERMS}  # permissions admin users get by default\n\n"
-                    f"USE_BUTTONS = True  # to use buttons to select a song, if False uses reactions\n\n"
-                    f"USE_GRADIO = True  # use gradio for the user interface\n\n"
-                    f"SKIP_TIMELIMIT = 15  # in seconds, timelimit for a skip vote\n\n"
-                    f"MAX_SEARCH_SELECT = -1  # limit of youtube searching when choosing a song\n\n"
-                    f"REFERENCE_MESSAGES = True  # whether for the bot to reference the user or not\n\n"
-                    f"SKIP_PRIVATE_SEARCH = False  # whether or not to skip private/age restricted videos when searching\n\n"
-                    f"AUTO_DJ_MAX_ADD = 3  # how many songs does the auto dj add each time\n\n"
-                    f"QUEUE_VIDEOS_PER_PAGE = 15  # how many videos to show per page in the queue\n\n"
-                    f"DISCONNECT_AFTER_QUEUE_END = False  # if disabled, the bot will stay connected after all songs end")
+            f.write(DEFAULT_PARAMETERS)
         else:
             param_text = "\n\n".join(f"{key} = {value}" for key, value in param_dict.items()) + "\n\n"
             f.write(param_text)
