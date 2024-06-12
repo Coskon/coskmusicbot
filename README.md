@@ -3,10 +3,9 @@ A music bot for discord made in python, self-hosted or using cloud services.
 
 ---
 
-### Release: v1.0.0
-Finally released!
-
-Replit project updated.
+### Release: v1.0.1
+- Added login to use your account to access into otherwise unauthorized sites. **IMPORTANT: Read the [login section](#using-login) on this readme.**
+- Minor fixes
 
 ## Features
 - Use YouTube URLs or search, choosing from songs on multiple pages.
@@ -33,6 +32,7 @@ Replit project updated.
 - And more...
 
 ## Recently added
+- Login to use paid/unauthorized services.
 - Added spanish translation for the `help` message.
 - Updated "current time" calculation to be more accurate, less consuming and more consistent across servers.
 - Changed the `help` message, finally. Now it looks better and is divided into categories.
@@ -71,6 +71,25 @@ I found "Replit" as a free alternative (you can go [here](https://replit.com/@mc
 ## Important
 - This script was only tested on Windows, it might not work on other OS.
 - If you were to delete all prefixes and don't want to mess with the .json files to add them back, simply use "DEF_PREFIX" as the prefix and call the `options default` or `add_prefix [prefix]` commands.
+
+## Using Login
+**Important (if you'll ever login into any site):** This should only be used in YOUR pc, never use it where it could be public (unless you are 100% certain that the site is secure and private or you know what you're doing). I'm not responsible if anything happens because of this.
+### How to add site/service login
+- Go to the `LOGIN_DATA.json` file (if it's not created, use `play` with the link you want to use).
+- You'll see there is an **example_service**, to add your own you can follow its pattern, like this:
+    ```json
+    {
+    "example_service": {"username": "YOUR USERNAME/EMAIL", "password": "YOUR PASSWORD"},
+    "example_service2": {"username": "YOUR USERNAME/EMAIL", "password": "YOUR PASSWORD"}
+    }
+    ```
+- There, you'll need to provide the following:
+    - The name of your service (in lowercase, for example `twitch`).
+    - Your username or email and your password, whatever you would need to login into that site normally.
+- If you are not sure of what the name of the service should be, check the bot's console when you put the link and search for a message saying the detected service.
+
+This will allow yt-dlp to get the necessary data, however it might not always work. If you see the bot correctly putting the audio but ending it immediately after, it's because the stream url itself doesn't have the authorization, this might be fixed if yt-dlp implements a way to get the necessary bearer token, but for now there isn't any solution.
+
 
 ## Limitations
 - Some commands will not work if the necessary API key is not provided or is incorrect.
