@@ -956,15 +956,17 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
+    global loop_mode, dict_current_song, disable_play, dict_queue
     if before.channel is not None:
         voice_channel = before.channel
         if bot.user in voice_channel.members:
             if len(voice_channel.members) <= 1:
                 server = voice_channel.guild
+                gid = str(server.id)
                 voice_client = discord.utils.get(bot.voice_clients, guild=server)
                 await voice_client.disconnect()
 
-                file_path = f'options_{server.id}.json'
+                file_path = f'options_{gid}.json'
                 create_options_file(file_path)
                 try:
                     with open(file_path, 'r') as f:
@@ -974,18 +976,31 @@ async def on_voice_state_update(member, before, after):
                     with open(file_path, 'r') as f:
                         options = json.load(f)
                 if not 'restricted_to' in options:
-                    options = write_options(options, str(server.id), ['restricted_to'])
+                    options = write_options(options, str(gid), ['restricted_to'])
 
                 channel_to_send = None
                 for channel in server.text_channels:
                     if channel.permissions_for(server.me).send_messages:
                         channel_to_send = channel
                         break
+
+                loop_mode[gid] = "off"
+                dict_queue[gid] = []
+                disable_play = False
+                dict_current_song[gid] = 0
+                try:
+                    del song_start_times[gid]
+                    del pause_start_times[gid]
+                    del paused_durations[gid]
+                except:
+                    pass
+
                 if not channel_to_send:
                     return
                 if options['restricted_to'] != 'ALL_CHANNELS':
                     channel_to_send = discord.utils.get(server.channels, name=options['restricted_to'])
                 await channel_to_send.send(random.choice(nobody_left_texts))
+
 
 
 ## BOT TASKS ##
@@ -1311,7 +1326,7 @@ async def join(ctx):
 async def leave(ctx, *, tmp='', ignore=False, disconnect=True, ended_queue=False):
     try:
         channel_to_send, CAN_REPLY = get_channel_restriction(ctx)
-        global loop_mode, dict_current_song, disable_play
+        global loop_mode, dict_current_song, disable_play, dict_queue
         voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
         if not ignore:
             if not check_perms(ctx, "use_leave"):
