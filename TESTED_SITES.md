@@ -1,6 +1,5 @@
 ﻿## Sites that work
 
-### Regular sites
 - YouTube
 - Spotify
 - SoundCloud
@@ -14,15 +13,6 @@
 - DailyMotion
 - Medal
 - La Cielo ([argentinean radio](https://lacielo.com.ar/en-vivo))
-
-### NSFW
-<details>
-  <summary>Show</summary>
-  
-  - PornHub
-  
-</details>
-
 
 #### Add to this list
 - Info to add: Name of the site/service (additional info, not too long)
